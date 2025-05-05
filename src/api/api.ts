@@ -15,7 +15,7 @@ export const dispatchSessionEvent = (eventType: string) => {
 
 // Create base axios instances for each service
 export const businessDomainApi = axios.create({
-  baseURL: process.env.REACT_APP_BUSINESS_DOMAIN_URL || 'http://localhost:5116',
+  baseURL: process.env.REACT_APP_BUSINESS_DOMAIN_URL || 'https://invaise-businessdomain-f5ebbbfgghaeedas.westeurope-01.azurewebsites.net',
   withCredentials: false, // Change to false to avoid CORS preflight issues
   timeout: 10000, // Set timeout to 10 seconds
   headers: {
