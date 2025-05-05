@@ -22,12 +22,13 @@ import { AxiosError } from 'axios';
 const gradientBackground = 'linear-gradient(135deg, #7467ef 0%, #c662e0 100%)';
 
 const Login: React.FC = () => {
-  const { login, register, updatePersonalInfo, isLoading } = useAuth();
+  const { login, register, updatePersonalInfo, forgotPassword, isLoading } = useAuth();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
   
   // Form states
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [openPersonalInfoDialog, setOpenPersonalInfoDialog] = useState(false);
   const [newUserId, setNewUserId] = useState('');
@@ -45,6 +46,7 @@ const Login: React.FC = () => {
   // Toggle between login and register mode
   const toggleMode = () => {
     setIsLoginMode(!isLoginMode);
+    setIsForgotPasswordMode(false);
     // Clear form fields and errors when switching modes
     setEmail('');
     setPassword('');
@@ -52,6 +54,26 @@ const Login: React.FC = () => {
     clearErrors();
   };
   
+  // Toggle to forgot password mode
+  const toggleForgotPasswordMode = () => {
+    setIsForgotPasswordMode(true);
+    setIsLoginMode(false);
+    // Clear form fields and errors
+    setEmail('');
+    setPassword('');
+    setName('');
+    clearErrors();
+  };
+  
+  // Back to login mode from forgot password
+  const backToLogin = () => {
+    setIsForgotPasswordMode(false);
+    setIsLoginMode(true);
+    // Clear form fields and errors
+    setEmail('');
+    clearErrors();
+  };
+
   // Clear all error messages
   const clearErrors = () => {
     setEmailError('');
@@ -140,6 +162,28 @@ const Login: React.FC = () => {
     }
   };
   
+  // Handle forgot password form submission
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate email
+    const isEmailValid = validateEmail(email);
+    
+    if (!isEmailValid) {
+      return;
+    }
+    
+    try {
+      const result = await forgotPassword(email);
+      addNotification('success', 'If your email exists in our system, a password reset email has been sent.');
+      // Return to login form
+      backToLogin();
+    } catch (error: any) {
+      console.error('Forgot password error:', error);
+      addNotification('error', getErrorMessage(error));
+    }
+  };
+  
   // Handle registration form submission
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +227,238 @@ const Login: React.FC = () => {
       console.error('Error updating personal info:', error);
       addNotification('error', getErrorMessage(error));
     }
+  };
+  
+  // Render form title based on current mode
+  const renderFormTitle = () => {
+    if (isForgotPasswordMode) {
+      return 'Forgot Password';
+    }
+    return isLoginMode ? 'Login' : 'Create Account';
+  };
+
+  // Render form based on current mode
+  const renderForm = () => {
+    if (isForgotPasswordMode) {
+      return (
+        <Box component="form" onSubmit={handleForgotPassword} noValidate sx={{ mt: 1 }}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={!!emailError}
+            helperText={emailError}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Email />
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, mb: 2 }}
+            disabled={isLoading}
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Reset Password'}
+          </Button>
+          
+          <Button
+            fullWidth
+            variant="text"
+            onClick={backToLogin}
+            sx={{ mb: 2 }}
+          >
+            Back to Login
+          </Button>
+        </Box>
+      );
+    }
+
+    if (isLoginMode) {
+      return (
+        <Box component="form" onSubmit={handleLogin} noValidate sx={{ mt: 1 }}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={!!emailError}
+            helperText={emailError}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Email />
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            id="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={!!passwordError}
+            helperText={passwordError}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Lock />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, mb: 2 }}
+            disabled={isLoading}
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
+          </Button>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <Link component="button" variant="body2" onClick={toggleForgotPasswordMode}>
+              Forgot password?
+            </Link>
+            <Link component="button" variant="body2" onClick={toggleMode}>
+              Don't have an account? Sign Up
+            </Link>
+          </Box>
+        </Box>
+      );
+    }
+    
+    return (
+      <Box component="form" onSubmit={handleRegister} noValidate sx={{ mt: 1 }}>
+        <TextField
+          margin="normal"
+          required
+          fullWidth
+          id="name"
+          label="Full Name"
+          name="name"
+          autoComplete="name"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={!!nameError}
+          helperText={nameError}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Person />
+              </InputAdornment>
+            ),
+          }}
+        />
+        
+        <TextField
+          margin="normal"
+          required
+          fullWidth
+          id="email"
+          label="Email Address"
+          name="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={!!emailError}
+          helperText={emailError}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Email />
+              </InputAdornment>
+            ),
+          }}
+        />
+        
+        <TextField
+          margin="normal"
+          required
+          fullWidth
+          name="password"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          id="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={!!passwordError}
+          helperText={passwordError}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Lock />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="toggle password visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        
+        <Button
+          type="submit"
+          fullWidth
+          variant="contained"
+          sx={{ mt: 3, mb: 2 }}
+          disabled={isLoading}
+        >
+          {isLoading ? <CircularProgress size={24} /> : 'Sign Up'}
+        </Button>
+        
+        <Link component="button" variant="body2" onClick={toggleMode}>
+          Already have an account? Sign In
+        </Link>
+      </Box>
+    );
   };
   
   return (
@@ -251,211 +527,57 @@ const Login: React.FC = () => {
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: 4,
             color: 'white',
+            padding: 4,
             position: 'relative',
             overflow: 'hidden',
           }}
         >
-          <Typography variant="h3" fontWeight="bold" align="center">
-            Welcome to Invaise
+          <Typography variant="h3" component="h1" sx={{ fontWeight: 700, mb: 2, zIndex: 1 }}>
+            Invaise
           </Typography>
-          <Typography variant="body1" align="center" sx={{ mt: 3, mb: 4, maxWidth: '80%' }}>
-            Investment portfolio optimization powered by AI to help you achieve your financial goals.
+          <Typography variant="body1" sx={{ textAlign: 'center', maxWidth: '80%', mb: 4, zIndex: 1 }}>
+            Your advanced platform for investment portfolio management powered by AI.
           </Typography>
-          
-          {/* Animated diagonals */}
-          <Box
-            sx={{
-              position: 'absolute',
-              width: '150%',
-              height: '100%',
-              transform: 'rotate(-20deg)',
-              left: '-25%',
-              bottom: '-50%',
-              display: 'flex',
-              justifyContent: 'space-between',
-              zIndex: 0,
-            }}
-          >
-            {Array.from({ length: 10 }).map((_, index) => (
-              <Box
-                key={index}
-                sx={{
-                  height: '1000px',
-                  width: '3px',
-                  background: 'rgba(255,255,255,0.15)',
-                  marginRight: '30px',
-                  boxShadow: '0 0 12px rgba(255,255,255,0.3)',
-                  animation: `moveUpDown ${(Math.random() * 3) + 4}s ease-in-out infinite`,
-                  animationDelay: `${Math.random() * 2}s`,
-                  '@keyframes moveUpDown': {
-                    '0%': { transform: 'translateY(0)' },
-                    '50%': { transform: 'translateY(-100px)' },
-                    '100%': { transform: 'translateY(0)' },
-                  },
-                }}
-              />
-            ))}
-          </Box>
-          
-          {/* Circles */}
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Box
-              key={`circle-${index}`}
-              sx={{
-                position: 'absolute',
-                width: `${50 + (index * 15)}px`,
-                height: `${50 + (index * 15)}px`,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.1)',
-                top: `${Math.random() * 80}%`,
-                left: `${Math.random() * 80}%`,
-                zIndex: 0,
-              }}
-            />
-          ))}
         </Box>
-
-        {/* Right side - Login/Register form */}
+        
+        {/* Right side - Authentication form */}
         <Box
           sx={{
             width: { xs: '100%', md: '50%' },
+            backgroundColor: 'white',
             padding: 4,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
           }}
         >
-          <Typography variant="h5" fontWeight="bold" align="center" sx={{ mb: 2 }}>
-            {isLoginMode ? 'USER LOGIN' : 'CREATE ACCOUNT'}
-          </Typography>
-          
-          <form onSubmit={isLoginMode ? handleLogin : handleRegister}>
-            {/* Name field (only for registration) */}
-            {!isLoginMode && (
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Full Name"
-                variant="outlined"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                error={!!nameError}
-                helperText={nameError}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Person color="primary" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            )}
-            
-            {/* Email field */}
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Email Address"
-              variant="outlined"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={!!emailError}
-              helperText={emailError}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email color="primary" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            
-            {/* Password field */}
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Password"
-              variant="outlined"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={!!passwordError}
-              helperText={passwordError}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="primary" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            
-            {/* Forgot password link (only for login) */}
-            {isLoginMode && (
-              <Box sx={{ textAlign: 'right', mt: 1 }}>
-                <Link href="#" variant="body2">
-                  Forgot password?
-                </Link>
-              </Box>
-            )}
-
-            {/* Submit button */}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              size="large"
-              sx={{ 
-                mt: 3, 
-                mb: 2,
-                borderRadius: '50px',
-                background: gradientBackground,
-                py: 1.5,
-              }}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                isLoginMode ? 'LOGIN' : 'REGISTER'
-              )}
-            </Button>
-
-            {/* Toggle between login and register */}
-            <Typography align="center" variant="body2">
-              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
-              <Link component="button" variant="body2" onClick={toggleMode}>
-                {isLoginMode ? 'Register Now' : 'Login'}
-              </Link>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="h5" component="h2" fontWeight={600} color="primary">
+              {renderFormTitle()}
             </Typography>
-          </form>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {isForgotPasswordMode 
+                ? 'Enter your email to receive a temporary password' 
+                : isLoginMode 
+                  ? 'Welcome back! Please sign in to continue.' 
+                  : 'Create a new account to get started.'}
+            </Typography>
+          </Box>
+          
+          {renderForm()}
         </Box>
       </Paper>
       
-      {/* Personal Information Dialog */}
-      <Dialog 
-        open={openPersonalInfoDialog} 
-        maxWidth="md"
-        fullWidth 
-        onClose={() => {}}
-      >
+      {/* Personal info dialog after registration */}
+      <Dialog open={openPersonalInfoDialog} fullWidth maxWidth="sm">
         <PersonalInfoForm 
-          onSubmit={handlePersonalInfoSubmit} 
-          isLoading={isLoading} 
+          onSubmit={handlePersonalInfoSubmit}
+          onSkip={() => {
+            setOpenPersonalInfoDialog(false);
+            navigate('/');
+          }}
+          isLoading={isLoading}
         />
       </Dialog>
     </Box>

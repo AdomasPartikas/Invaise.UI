@@ -63,4 +63,11 @@ export const getPortfolioPerformance = (portfolioId: string, startDate: string, 
 export const getPortfolioValueHistory = (portfolioId: string, timeRange: string) =>
   businessDomainApi.get(`/api/portfolio/${portfolioId}/history`, {
     params: { timeRange }
+  });
+
+// Download portfolio performance report as PDF
+export const downloadPortfolioPerformanceReport = (portfolioId: string, startDate: string, endDate: string) =>
+  businessDomainApi.get(`/api/portfolio/${portfolioId}/performance-report`, {
+    params: { startDate, endDate },
+    responseType: 'blob'
   }); 

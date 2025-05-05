@@ -45,8 +45,10 @@ import {
   ExpandMore,
   TrendingUp,
   TrendingDown,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { usePortfolio } from '../contexts/PortfolioContext';
 import {
   getPortfolios,
   createPortfolio,
@@ -56,6 +58,7 @@ import {
   createPortfolioStock,
   updatePortfolioStock,
   deletePortfolioStock,
+  downloadPortfolioPerformanceReport,
 } from '../services/portfolioService';
 import {
   Portfolio as PortfolioType,
@@ -66,6 +69,8 @@ import {
   InvestmentType,
 } from '../types/portfolio';
 import { businessDomainService } from '../api/businessDomainService';
+import { PortfolioOptimization } from '../components/dashboard/PortfolioOptimization';
+import PerformanceReportDialog from '../components/portfolio/PerformanceReportDialog';
 
 // Create a modified type that allows string values for quantity and investmentAmount
 type StockFormData = Omit<CreatePortfolioStockRequest, 'quantity' | 'investmentAmount'> & {
@@ -75,6 +80,7 @@ type StockFormData = Omit<CreatePortfolioStockRequest, 'quantity' | 'investmentA
 
 const Portfolio: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { portfolios: domainPortfolios, currentPortfolio: domainCurrentPortfolio, selectPortfolio } = usePortfolio();
   const [portfolios, setPortfolios] = useState<PortfolioType[]>([]);
   const [expandedPortfolio, setExpandedPortfolio] = useState<string | false>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -116,6 +122,11 @@ const Portfolio: React.FC = () => {
     severity: 'info',
   });
 
+  // Performance report states
+  const [openReportDialog, setOpenReportDialog] = useState<boolean>(false);
+  const [reportPortfolio, setReportPortfolio] = useState<PortfolioType | null>(null);
+  const [reportLoading, setReportLoading] = useState<boolean>(false);
+  
   // Fetch portfolios on component mount
   useEffect(() => {
     if (isAuthenticated) {
@@ -131,10 +142,10 @@ const Portfolio: React.FC = () => {
       setPortfolios(response.data);
       setError(null);
       
-      // If a portfolio is expanded, also refresh its stocks
-      if (expandedPortfolio) {
-        fetchPortfolioStocks(expandedPortfolio.toString());
-      }
+      // Fetch stocks for all portfolios initially
+      response.data.forEach(portfolio => {
+        fetchPortfolioStocks(portfolio.id);
+      });
     } catch (err) {
       console.error('Error fetching portfolios:', err);
       setError('Failed to load portfolios. Please try again.');
@@ -184,6 +195,8 @@ const Portfolio: React.FC = () => {
   const handleAccordionChange = (portfolioId: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedPortfolio(isExpanded ? portfolioId : false);
     
+    // No need to fetch stocks again as they're loaded on component mount
+    // but refresh the data if the accordion is expanded
     if (isExpanded) {
       fetchPortfolioStocks(portfolioId);
     }
@@ -643,6 +656,57 @@ const Portfolio: React.FC = () => {
     };
   };
 
+  // Handle opening the performance report dialog
+  const handleOpenReportDialog = (portfolio: PortfolioType) => {
+    setReportPortfolio(portfolio);
+    setOpenReportDialog(true);
+  };
+  
+  // Handle closing the performance report dialog
+  const handleCloseReportDialog = () => {
+    setOpenReportDialog(false);
+    setReportPortfolio(null);
+  };
+  
+  // Download the portfolio performance report
+  const handleDownloadReport = async (portfolioId: string, startDate: string, endDate: string) => {
+    setReportLoading(true);
+    try {
+      const response = await downloadPortfolioPerformanceReport(portfolioId, startDate, endDate);
+      
+      // Create a blob URL for the PDF file
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element to trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `portfolio-performance-report-${portfolioId}-${startDate}-${endDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      
+      setSnackbar({
+        open: true,
+        message: 'Performance report downloaded successfully',
+        severity: 'success',
+      });
+      handleCloseReportDialog();
+    } catch (err) {
+      console.error('Error downloading performance report:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to download performance report',
+        severity: 'error',
+      });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   if (loading && portfolios.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -865,15 +929,41 @@ const Portfolio: React.FC = () => {
                       
                       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="h6">Holdings</Typography>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          startIcon={<Add />}
-                          onClick={() => handleOpenStockDialog(portfolio)}
-                        >
-                          Add Stock
-                        </Button>
+                        <Stack direction="row" spacing={2}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<Add />}
+                            onClick={() => handleOpenStockDialog(portfolio)}
+                          >
+                            Add Stock
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="secondary"
+                            size="small"
+                            startIcon={<TrendingUp />}
+                            onClick={() => {
+                              selectPortfolio(portfolio.id);
+                              setExpandedPortfolio(portfolio.id);
+                            }}
+                          >
+                            Optimize Portfolio
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="primary"
+                            size="small"
+                            startIcon={<PictureAsPdf />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReportDialog(portfolio);
+                            }}
+                          >
+                            Download Report
+                          </Button>
+                        </Stack>
                       </Box>
                       
                       {portfolio.portfolioStocks && portfolio.portfolioStocks.length > 0 ? (
@@ -960,6 +1050,13 @@ const Portfolio: React.FC = () => {
                             Add Your First Stock
                           </Button>
                         </Paper>
+                      )}
+                      
+                      {/* Portfolio Optimization Section */}
+                      {domainCurrentPortfolio && domainCurrentPortfolio.id === portfolio.id && (
+                        <Box sx={{ mt: 4 }}>
+                          <PortfolioOptimization />
+                        </Box>
                       )}
                     </>
                   )}
@@ -1194,6 +1291,16 @@ const Portfolio: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Performance Report Dialog */}
+      <PerformanceReportDialog
+        open={openReportDialog}
+        portfolioId={reportPortfolio?.id || ''}
+        portfolioName={reportPortfolio?.name || ''}
+        onClose={handleCloseReportDialog}
+        onDownload={handleDownloadReport}
+        isLoading={reportLoading}
+      />
 
       {/* Snackbar for feedback */}
       <Snackbar

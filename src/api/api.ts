@@ -3,6 +3,16 @@ import axios, { AxiosError } from 'axios';
 // Define token key constants to match authService.ts
 const TOKEN_KEY = 'invaise_auth_token';
 
+// Define a custom event for token expiration
+export const SESSION_EXPIRED_EVENT = 'session_expired';
+export const SESSION_ABOUT_TO_EXPIRE_EVENT = 'session_about_to_expire';
+
+// Helper function to dispatch session events
+export const dispatchSessionEvent = (eventType: string) => {
+  const event = new CustomEvent(eventType);
+  document.dispatchEvent(event);
+};
+
 // Create base axios instances for each service
 export const businessDomainApi = axios.create({
   baseURL: process.env.REACT_APP_BUSINESS_DOMAIN_URL || 'http://localhost:5116',
@@ -60,9 +70,8 @@ const addErrorInterceptor = (apiInstance: any) => {
         // Handle 401 Unauthorized errors (token expired or invalid)
         if (error.response.status === 401) {
           console.log('Unauthorized: Token may be expired or invalid');
-          // Optionally redirect to login or clear token
-          // localStorage.removeItem(TOKEN_KEY);
-          // window.location.href = '/login';
+          // Dispatch session expired event instead of immediate redirect
+          dispatchSessionEvent(SESSION_EXPIRED_EVENT);
         }
         
         // Extract error message if available

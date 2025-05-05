@@ -14,7 +14,14 @@ interface NotificationContextType {
   removeNotification: (id: string) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+// Initialize with default values
+const defaultContext: NotificationContextType = {
+  notifications: [],
+  addNotification: () => {},
+  removeNotification: () => {}
+};
+
+const NotificationContext = createContext<NotificationContextType>(defaultContext);
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -33,8 +40,14 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
+  const contextValue = {
+    notifications,
+    addNotification,
+    removeNotification
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, addNotification, removeNotification }}>
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   );
@@ -42,8 +55,5 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
 export const useNotification = () => {
   const context = useContext(NotificationContext);
-  if (context === undefined) {
-    throw new Error('useNotification must be used within a NotificationProvider');
-  }
   return context;
 }; 

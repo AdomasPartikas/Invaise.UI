@@ -1,14 +1,20 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider as StyledThemeProvider } from 'styled-components';
 import CssBaseline from '@mui/material/CssBaseline';
 import Layout from './components/Layout/Layout';
-import { Dashboard, Portfolio } from './pages';
+import { Dashboard, Portfolio, Profile, Transactions, Admin } from './pages';
 import Login from './pages/Login';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PortfolioProvider } from './contexts/PortfolioContext';
+import { TransactionProvider } from './contexts/TransactionContext';
+import { UserProvider } from './contexts/UserContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { MarketStatusProvider } from './contexts/MarketStatusContext';
 import NotificationContainer from './components/common/Notification';
+import SessionManager from './components/SessionManager';
+import { businessDomainService } from './api/businessDomainService';
 
 // Create a theme instance
 const theme = createTheme({
@@ -41,71 +47,159 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Protected Admin Route component that checks if user is admin
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  const [isAdmin, setIsAdmin] = React.useState<boolean | null>(null);
+  const [checking, setChecking] = React.useState(true);
+
+  React.useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        if (isAuthenticated) {
+          const adminStatus = await businessDomainService.isAdmin();
+          setIsAdmin(adminStatus);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [isAuthenticated]);
+
+  if (isLoading || checking) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Session Manager Wrapper - only shows when user is authenticated
+const SessionManagerWrapper = () => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <SessionManager warningTime={5} /> : null;
+};
+
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {/* AuthProvider needs to be outside of Router since components inside Router use useAuth */}
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <NotificationContainer />
-            <Routes>
-              <Route path="/login" element={<Login />} />
+    <MuiThemeProvider theme={theme}>
+      <StyledThemeProvider theme={theme}>
+        <CssBaseline />
+        {/* AuthProvider needs to be outside of Router since components inside Router use useAuth */}
+        <AuthProvider>
+          <NotificationProvider>
+            <MarketStatusProvider>
+              <TransactionProvider>
+                <Router>
+                  <NotificationContainer />
+                  <SessionManagerWrapper />
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
 
-              {/* Protected routes with PortfolioProvider */}
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <PortfolioProvider>
-                      <Layout>
-                        <Dashboard />
-                      </Layout>
-                    </PortfolioProvider>
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/predictions" 
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <div>Predictions Page (Coming Soon)</div>
-                    </Layout>
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/portfolio" 
-                element={
-                  <ProtectedRoute>
-                    <PortfolioProvider>
-                      <Layout>
-                        <Portfolio />
-                      </Layout>
-                    </PortfolioProvider>
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/optimization" 
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <div>Optimization Page (Coming Soon)</div>
-                    </Layout>
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Router>
-        </NotificationProvider>
-      </AuthProvider>
-    </ThemeProvider>
+                    {/* Protected routes with PortfolioProvider */}
+                    <Route 
+                      path="/" 
+                      element={
+                        <ProtectedRoute>
+                          <PortfolioProvider>
+                            <Layout>
+                              <Dashboard />
+                            </Layout>
+                          </PortfolioProvider>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/predictions" 
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <div>Predictions Page (Coming Soon)</div>
+                          </Layout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/portfolio" 
+                      element={
+                        <ProtectedRoute>
+                          <PortfolioProvider>
+                            <Layout>
+                              <Portfolio />
+                            </Layout>
+                          </PortfolioProvider>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/transactions" 
+                      element={
+                        <ProtectedRoute>
+                          <PortfolioProvider>
+                            <Layout>
+                              <Transactions />
+                            </Layout>
+                          </PortfolioProvider>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/optimization" 
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <div>Optimization Page (Coming Soon)</div>
+                          </Layout>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/profile" 
+                      element={
+                        <ProtectedRoute>
+                          <UserProvider>
+                            <Layout>
+                              <Profile />
+                            </Layout>
+                          </UserProvider>
+                        </ProtectedRoute>
+                      } 
+                    />
+                    
+                    <Route 
+                      path="/admin" 
+                      element={
+                        <AdminRoute>
+                          <Layout>
+                            <Admin />
+                          </Layout>
+                        </AdminRoute>
+                      } 
+                    />
+                    
+                    {/* Catch-all route */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Router>
+              </TransactionProvider>
+            </MarketStatusProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </StyledThemeProvider>
+    </MuiThemeProvider>
   );
 }
 

@@ -18,10 +18,11 @@ import { UserPersonalInfo, UserPreferences } from '../../types/auth';
 
 interface PersonalInfoFormProps {
   onSubmit: (personalInfo: UserPersonalInfo) => void;
+  onSkip?: () => void;
   isLoading?: boolean;
 }
 
-const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, isLoading = false }) => {
+const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, onSkip, isLoading = false }) => {
   const [personalInfo, setPersonalInfo] = useState<UserPersonalInfo>({
     address: '',
     phoneNumber: '',
@@ -84,6 +85,15 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, isLoading
     
     if (validateForm()) {
       onSubmit(personalInfo);
+    }
+  };
+
+  // Handle skip
+  const handleSkip = () => {
+    if (onSkip) {
+      onSkip();
+    } else {
+      onSubmit({});
     }
   };
 
@@ -190,7 +200,7 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, isLoading
       
       <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
         <Button 
-          onClick={() => onSubmit({})} 
+          onClick={handleSkip}
           color="inherit"
           disabled={isLoading}
         >

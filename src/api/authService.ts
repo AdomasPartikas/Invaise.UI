@@ -32,38 +32,73 @@ export const authService = {
     return data;
   },
   
-  // Update user personal info
-  updatePersonalInfo: async (userId: string, personalInfo: UserPersonalInfo): Promise<User> => {
-    const response = await businessDomainApi.put(`/api/user/${userId}/personal-info`, personalInfo);
-    
-    // Update user in local storage
-    const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
-    const updatedUser = { ...currentUser, personalInfo: response.data };
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-    
-    return updatedUser;
+  // Forgot password
+  forgotPassword: async (email: string): Promise<boolean> => {
+    return await businessDomainService.forgotPassword(email);
   },
   
-  // Update user preferences
-  updatePreferences: async (userId: string, preferences: UserPreferences): Promise<User> => {
-    const response = await businessDomainApi.put(`/api/user/${userId}/preferences`, preferences);
-    
-    // Update user in local storage
-    const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
-    const updatedUser = { ...currentUser, preferences: response.data };
-    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-    
-    return updatedUser;
+  // Refresh token
+  refreshToken: async (): Promise<AuthResponse | null> => {
+    try {
+      // Get the current token and user email
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser || !currentUser.email) {
+        return null;
+      }
+
+      const token = localStorage.getItem(TOKEN_KEY);
+
+      if (!token) {
+        return null;
+      }
+      
+      // Call the token refresh endpoint with minimal credentials
+      const data = await businessDomainService.refreshToken(token);
+      
+      // Save the new auth data
+      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      localStorage.setItem(EXPIRY_KEY, data.expiresAt);
+      
+      return data;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return null;
+    }
   },
   
   // Get current user info
   getCurrentUserInfo: async (): Promise<User> => {
-    const response = await businessDomainApi.get('/api/user/me');
+    const response = await businessDomainService.getCurrentUser();
     
     // Update user in local storage
-    localStorage.setItem(USER_KEY, JSON.stringify(response.data));
+    localStorage.setItem(USER_KEY, JSON.stringify(response));
     
-    return response.data;
+    return response;
+  },
+  
+  // Update user personal info
+  updatePersonalInfo: async (userId: string, personalInfo: UserPersonalInfo): Promise<UserPersonalInfo> => {
+    const response = await businessDomainService.updateUserPersonalInfo(userId, personalInfo);
+    
+    // Update user in local storage
+    const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+    const updatedUser = { ...currentUser, personalInfo: response };
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    
+    return response;
+  },
+  
+  // Update user preferences
+  updatePreferences: async (userId: string, preferences: UserPreferences): Promise<UserPreferences> => {
+    const response = await businessDomainService.updateUserPreferences(userId, preferences);
+    
+    // Update user in local storage
+    const currentUser = JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+    const updatedUser = { ...currentUser, preferences: response };
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    
+    return response;
   },
   
   // Logout user
@@ -86,6 +121,12 @@ export const authService = {
     const expiry = new Date(expiryStr);
     const now = new Date();
     return now < expiry;
+  },
+  
+  // Get token expiry time
+  getTokenExpiry: (): Date | null => {
+    const expiryStr = localStorage.getItem(EXPIRY_KEY);
+    return expiryStr ? new Date(expiryStr) : null;
   },
   
   // Get current user

@@ -22,6 +22,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegistrationData) => Promise<void>;
   updatePersonalInfo: (userId: string, info: PersonalInfo) => Promise<void>;
+  forgotPassword: (email: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -79,6 +80,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
+  const forgotPassword = async (email: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      return await authService.forgotPassword(email);
+    } catch (error) {
+      console.error('Forgot password request failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const updatePersonalInfo = async (userId: string, info: PersonalInfo) => {
     setIsLoading(true);
     try {
@@ -110,6 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       login, 
       register, 
       updatePersonalInfo, 
+      forgotPassword,
       logout 
     }}>
       {children}
