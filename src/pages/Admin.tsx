@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom';
 import { 
   Container, 
   Typography, 
-  Grid, 
   Card, 
   CardContent, 
   CardActions, 
@@ -22,7 +21,6 @@ import {
   Paper,
   TableSortLabel,
   Switch,
-  IconButton,
   Tooltip
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -31,7 +29,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { businessDomainService, AIModel, LogEntry } from '../api/businessDomainService';
 import { getAllUsers, updateUserActiveStatus, UserDto } from '../services/userService';
 
-// Type for sort direction
 type Order = 'asc' | 'desc';
 
 const Admin: React.FC = () => {
@@ -43,30 +40,24 @@ const Admin: React.FC = () => {
   const [trainingStatus, setTrainingStatus] = useState<Record<number, boolean>>({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' as 'info' | 'success' | 'error' });
   
-  // Logs state
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [orderBy, setOrderBy] = useState<keyof LogEntry>('timeStamp');
   const [order, setOrder] = useState<Order>('desc');
 
-  // User management state
   const [users, setUsers] = useState<UserDto[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   
-  // Refresh timer state
   const [timeUntilRefresh, setTimeUntilRefresh] = useState<number>(30);
   const [isTimerActive, setIsTimerActive] = useState<boolean>(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check if user is admin
   useEffect(() => {
     const checkAdmin = async () => {
       try {
-        console.log('Checking admin status...');
         const adminStatus = await businessDomainService.isAdmin();
-        console.log('Admin status response:', adminStatus);
         setIsAdmin(adminStatus);
       } catch (error) {
         console.error('Error checking admin status:', error);
@@ -80,18 +71,13 @@ const Admin: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // Fetch AI models
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        console.log('Admin is true, fetching AI models...');
         const modelData = await businessDomainService.getAllModels();
-        console.log('Received model data:', modelData);
         
         if (!modelData || !Array.isArray(modelData) || modelData.length === 0) {
-          console.warn('Received empty or invalid model data, using fallback data');
           
-          // Use fallback model data if API fails
           const fallbackModels: AIModel[] = [
             {
               id: 1,
@@ -129,23 +115,17 @@ const Admin: React.FC = () => {
           ];
           
           setModels(fallbackModels);
-          console.log('Models set to fallback data:', fallbackModels);
           setError('Using placeholder data: API endpoint may not be available.');
         } else {
           setModels(modelData);
-          console.log('Models set to state:', modelData);
         }
         
-        // Also fetch training status
-        console.log('Fetching training status...');
         const status = await businessDomainService.getTrainingStatus();
-        console.log('Received training status:', status);
         setTrainingStatus(status || {});
         
       } catch (error) {
         console.error('Error fetching models or training status:', error);
         
-        // Use fallback model data if API fails
         const fallbackModels: AIModel[] = [
           {
             id: 1,
@@ -185,21 +165,17 @@ const Admin: React.FC = () => {
         setModels(fallbackModels);
         setError('Failed to load AI model data. Using placeholder data for demonstration.');
       } finally {
-        console.log('Setting loading to false');
         setLoading(false);
       }
     };
 
-    console.log('isAdmin state:', isAdmin);
     if (isAdmin === true) {
       fetchModels();
     } else if (isAdmin !== null) {
-      // If isAdmin is false (but not null), set loading to false
       setLoading(false);
     }
   }, [isAdmin]);
 
-  // Refresh training status periodically
   useEffect(() => {
     if (!isAdmin) return;
     
@@ -212,7 +188,7 @@ const Admin: React.FC = () => {
       }
     };
 
-    const intervalId = setInterval(fetchTrainingStatus, 30000); // Check every 30 seconds
+    const intervalId = setInterval(fetchTrainingStatus, 30000);
     
     return () => clearInterval(intervalId);
   }, [isAdmin]);
@@ -221,7 +197,6 @@ const Admin: React.FC = () => {
     try {
       const result = await businessDomainService.initiateModelRetraining(modelId);
       if (result) {
-        // Update training status immediately for UI feedback
         setTrainingStatus(prev => ({ ...prev, [modelId]: true }));
         setSnackbar({
           open: true,
@@ -253,7 +228,6 @@ const Admin: React.FC = () => {
         .map(([modelId]) => parseInt(modelId));
       
       if (modelsInTraining.length > 0) {
-        // Update training status immediately for UI feedback
         const updatedStatus = { ...trainingStatus };
         modelsInTraining.forEach(modelId => {
           updatedStatus[modelId] = true;
@@ -284,7 +258,7 @@ const Admin: React.FC = () => {
 
   const getStatusColor = (model: AIModel): 'success' | 'warning' | 'error' => {
     if (trainingStatus[model.id]) {
-      return 'warning'; // Model is training
+      return 'warning';
     }
     
     return model.modelStatus.toLowerCase() === 'active' 
@@ -300,7 +274,6 @@ const Admin: React.FC = () => {
     return model.modelStatus;
   };
 
-  // Fetch logs
   useEffect(() => {
     const fetchLogs = async () => {
       if (!isAdmin) return;
@@ -324,14 +297,12 @@ const Admin: React.FC = () => {
     }
   }, [isAdmin]);
 
-  // Sort logs
   const handleRequestSort = (property: keyof LogEntry) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
   };
 
-  // Apply sorting to logs
   const sortedLogs = React.useMemo(() => {
     if (!Array.isArray(logs)) return [];
     
@@ -354,7 +325,6 @@ const Admin: React.FC = () => {
     return [...logs].sort(comparator);
   }, [logs, order, orderBy]);
 
-  // Get color for log level
   const getLogLevelColor = (level: string): 'error' | 'warning' | 'info' | 'success' => {
     switch (level.toLowerCase()) {
       case 'error':
@@ -368,7 +338,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  // Fetch users
   const fetchUsers = async () => {
     if (!isAdmin) return;
     
@@ -377,24 +346,20 @@ const Admin: React.FC = () => {
     
     try {
       const response = await getAllUsers(true);
-      // Ensure users is always an array
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching users:', error);
       setUsersError('Failed to load user data.');
-      // Set users to empty array on error
       setUsers([]);
     } finally {
       setUsersLoading(false);
     }
   };
 
-  // Handle toggling user active status
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
       const response = await updateUserActiveStatus(userId, !currentStatus);
       
-      // Update the user in the local state
       setUsers(prev => prev.map(user => 
         user.id === userId ? { ...user, isActive: !currentStatus } : user
       ));
@@ -414,21 +379,15 @@ const Admin: React.FC = () => {
     }
   };
 
-  // Refresh all data
   const refreshAllData = useCallback(() => {
     if (isAdmin === true) {
-      // Reset timer
       setTimeUntilRefresh(30);
       
-      // Fetch all data
       const fetchModels = async () => {
         try {
-          console.log('Admin is true, fetching AI models...');
           const modelData = await businessDomainService.getAllModels();
           setModels(Array.isArray(modelData) ? modelData : []);
           
-          // Also fetch training status
-          console.log('Fetching training status...');
           const status = await businessDomainService.getTrainingStatus();
           setTrainingStatus(status || {});
         } catch (error) {
@@ -458,7 +417,6 @@ const Admin: React.FC = () => {
     }
   }, [isAdmin, setModels, setTrainingStatus, setLogs, setLogsError, setLogsLoading, fetchUsers]);
 
-  // Timer for auto-refresh
   useEffect(() => {
     if (!isAdmin || !isTimerActive) return;
     
@@ -483,26 +441,22 @@ const Admin: React.FC = () => {
     };
   }, [isAdmin, isTimerActive, refreshAllData]);
 
-  // Initial data fetch
   useEffect(() => {
     if (isAdmin === true) {
       fetchUsers();
     }
   }, [isAdmin]);
 
-  // Redirect if not authenticated
   if (isAuthenticated === false) {
     return <Navigate to="/login" />;
   }
 
-  // Redirect if not admin
   if (isAdmin === false) {
     return <Navigate to="/dashboard" />;
   }
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Title and Refresh Button */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1" gutterBottom>
           Admin Dashboard
@@ -590,7 +544,7 @@ const Admin: React.FC = () => {
                         height: '100%',
                         display: 'flex', 
                         flexDirection: 'column',
-                        minHeight: '380px' // Set minimum height for consistency
+                        minHeight: '380px'
                       }}>
                         <CardContent>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

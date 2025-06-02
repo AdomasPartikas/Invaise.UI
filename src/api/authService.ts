@@ -2,17 +2,14 @@ import { businessDomainApi } from './api';
 import { businessDomainService } from './businessDomainService';
 import { LoginCredentials, RegistrationData, AuthResponse, User, UserPersonalInfo, UserPreferences } from '../types/auth';
 
-// Local storage keys
 const TOKEN_KEY = 'invaise_auth_token';
 const USER_KEY = 'invaise_user';
 const EXPIRY_KEY = 'invaise_token_expiry';
 
 export const authService = {
-  // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const data = await businessDomainService.login(credentials);
     
-    // Save auth data to local storage
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
     localStorage.setItem(EXPIRY_KEY, data.expiresAt);

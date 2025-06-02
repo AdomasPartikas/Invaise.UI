@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { businessDomainService } from '../api/businessDomainService';
 import { Transaction, CreateTransactionRequest, TransactionTrigger } from '../types/transactions';
 
-// Define a type for grouped optimization transactions
 export interface OptimizationTransactionGroup {
   optimizationId: string;
   transactions: Transaction[];
@@ -21,7 +20,6 @@ interface TransactionContextType {
   cancelOptimization: (optimizationId: string) => Promise<boolean>;
 }
 
-// Initialize with empty values instead of undefined
 const defaultContext: TransactionContextType = {
   transactions: [],
   portfolioTransactions: [],
@@ -35,7 +33,6 @@ const defaultContext: TransactionContextType = {
   cancelOptimization: async () => false
 };
 
-// Create context with default values
 const TransactionContext = createContext<TransactionContextType>(defaultContext);
 
 export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -45,21 +42,16 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Add refs to track requests and prevent duplicate calls
   const pendingRequests = useRef<Record<string, boolean>>({});
   const lastFetchTimestamp = useRef<Record<string, number>>({});
   
-  // Minimum time between duplicate requests in milliseconds
-  const REQUEST_THROTTLE_TIME = 2000; // 2 seconds
+  const REQUEST_THROTTLE_TIME = 2000;
 
-  // Helper to group transactions by optimization ID
   const processOptimizationGroups = useCallback((transactionList: Transaction[]) => {
-    // Find all optimization transactions
     const optimizationTransactions = transactionList.filter(
       t => t.triggeredBy === TransactionTrigger.Optimization && t.optimizationId
     );
     
-    // Group by optimization ID
     const groupedById: Record<string, Transaction[]> = {};
     
     optimizationTransactions.forEach(transaction => {
@@ -71,7 +63,6 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
     });
     
-    // Convert to array of groups
     const groups: OptimizationTransactionGroup[] = Object.keys(groupedById).map(optimizationId => ({
       optimizationId,
       transactions: groupedById[optimizationId]
@@ -80,21 +71,17 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     setOptimizationGroups(groups);
   }, []);
 
-  // Fetch all user transactions
   const fetchUserTransactions = useCallback(async () => {
-    // Skip if we have a pending request
     if (pendingRequests.current['user']) {
       return;
     }
     
-    // Check if we recently made this request
     const now = Date.now();
     const lastFetch = lastFetchTimestamp.current['user'] || 0;
     if (now - lastFetch < REQUEST_THROTTLE_TIME) {
       return;
     }
     
-    // Mark this request as pending
     pendingRequests.current['user'] = true;
     lastFetchTimestamp.current['user'] = now;
     
@@ -109,28 +96,23 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       setError('Failed to fetch transactions');
     } finally {
       setIsLoading(false);
-      // Clear pending flag after a small delay to prevent immediate retry
       setTimeout(() => {
         pendingRequests.current['user'] = false;
       }, 500);
     }
   }, [processOptimizationGroups]);
 
-  // Fetch transactions for a specific portfolio
   const fetchPortfolioTransactions = useCallback(async (portfolioId: string) => {
-    // Skip if we have a pending request for this portfolio
     if (pendingRequests.current[portfolioId]) {
       return;
     }
     
-    // Check if we recently made this same request
     const now = Date.now();
     const lastFetch = lastFetchTimestamp.current[portfolioId] || 0;
     if (now - lastFetch < REQUEST_THROTTLE_TIME) {
       return;
     }
     
-    // Mark this request as pending
     pendingRequests.current[portfolioId] = true;
     lastFetchTimestamp.current[portfolioId] = now;
     
@@ -145,24 +127,20 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       setError('Failed to fetch portfolio transactions');
     } finally {
       setIsLoading(false);
-      // Clear pending flag after a small delay to prevent immediate retry
       setTimeout(() => {
         pendingRequests.current[portfolioId] = false;
       }, 500);
     }
   }, [processOptimizationGroups]);
 
-  // Create a new transaction
   const createTransaction = useCallback(async (transaction: CreateTransactionRequest) => {
     setIsLoading(true);
     setError(null);
     try {
       await businessDomainService.createTransaction(transaction);
       
-      // Refresh the transactions for the portfolio
       await fetchPortfolioTransactions(transaction.portfolioId);
       
-      // Also refresh all user transactions
       await fetchUserTransactions();
       
       return true;
@@ -175,17 +153,14 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }, [fetchPortfolioTransactions, fetchUserTransactions]);
 
-  // Cancel a transaction
   const cancelTransaction = useCallback(async (transactionId: string) => {
     setIsLoading(true);
     setError(null);
     try {
       await businessDomainService.cancelTransaction(transactionId);
       
-      // Refresh transactions after cancellation
       await fetchUserTransactions();
       
-      // Also refresh portfolio transactions if we have any currently loaded
       if (portfolioTransactions.length > 0) {
         const portfolioId = portfolioTransactions[0].portfolioId;
         await fetchPortfolioTransactions(portfolioId);
@@ -201,7 +176,6 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }, [fetchUserTransactions, fetchPortfolioTransactions, portfolioTransactions]);
 
-  // Cancel an optimization
   const cancelOptimization = useCallback(async (optimizationId: string) => {
     setIsLoading(true);
     setError(null);
@@ -213,10 +187,8 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
         return false;
       }
       
-      // Refresh transactions after cancellation
       await fetchUserTransactions();
       
-      // Also refresh portfolio transactions if we have any currently loaded
       if (portfolioTransactions.length > 0) {
         const portfolioId = portfolioTransactions[0].portfolioId;
         await fetchPortfolioTransactions(portfolioId);
@@ -232,7 +204,6 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   }, [fetchUserTransactions, fetchPortfolioTransactions, portfolioTransactions]);
 
-  // Load user transactions on mount
   useEffect(() => {
     fetchUserTransactions();
   }, [fetchUserTransactions]);

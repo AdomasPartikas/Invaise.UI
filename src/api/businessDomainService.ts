@@ -1,8 +1,7 @@
 import { businessDomainApi } from './api';
 import { LoginCredentials, RegistrationData, AuthResponse, UserPersonalInfo, UserPreferences } from '../types/auth';
-import { TransactionType, TransactionStatus, TransactionTrigger, Transaction, CreateTransactionRequest } from '../types/transactions';
+import { Transaction, CreateTransactionRequest } from '../types/transactions';
 
-// Types based on backend entities
 export interface MarketData {
   id: number;
   symbol: string;
@@ -111,7 +110,6 @@ export interface LogEntry {
 }
 
 export const businessDomainService = {
-  // Authentication methods
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response = await businessDomainApi.post('/auth/login', credentials);
     return response.data;
@@ -132,7 +130,6 @@ export const businessDomainService = {
     return response.status === 200;
   },
 
-  // User endpoints
   getCurrentUser: async () => {
     const response = await businessDomainApi.get('/api/user/me');
     return response.data;
@@ -148,7 +145,6 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // User management endpoints (admin only)
   getAllUsers: async (includeInactive: boolean = true) => {
     const response = await businessDomainApi.get('/api/user', {
       params: { includeInactive }
@@ -163,7 +159,6 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // Get historical market data for a symbol
   getHistoricalMarketData: async (symbol: string, start?: string, end?: string): Promise<MarketData[]> => {
     const response = await businessDomainApi.get('/api/MarketData/GetHistoricalMarketData', {
       params: { symbol, start, end }
@@ -171,7 +166,6 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // Get intraday data for a symbol
   getIntradayMarketData: async (symbol: string, start?: string, end?: string): Promise<IntradayData[]> => {
     const response = await businessDomainApi.get('/api/MarketData/GetIntradayMarketData', {
       params: { symbol, start, end }
@@ -179,7 +173,6 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // Get latest intraday data for a symbol with count
   getLatestIntradayMarketData: async (symbol: string, count: number = 2): Promise<IntradayData[]> => {
     const response = await businessDomainApi.get('/api/MarketData/GetLatestIntradayMarketDataWithCount', {
       params: { symbol, count }
@@ -187,7 +180,6 @@ export const businessDomainService = {
     return response.data;
   },
   
-  // Get latest historical market data for a symbol with count
   getLatestHistoricalMarketData: async (symbol: string, count: number = 2): Promise<MarketData[]> => {
     const response = await businessDomainApi.get('/api/MarketData/GetLatestHistoricalMarketDataWithCount', {
       params: { symbol, count }
@@ -195,13 +187,11 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // Get available symbols
   getAllUniqueSymbols: async (): Promise<string[]> => {
     const response = await businessDomainApi.get('/api/MarketData/GetAllUniqueSymbols');
     return response.data;
   },
 
-  // Portfolio endpoints
   getUserPortfolios: async (): Promise<Portfolio[]> => {
     const response = await businessDomainApi.get('/api/Portfolio');
     return response.data;
@@ -226,7 +216,6 @@ export const businessDomainService = {
     await businessDomainApi.delete(`/api/Portfolio/${id}`);
   },
 
-  // Refresh portfolio data with new Gaia prediction
   refreshPortfolio: async (id: string): Promise<{ success: boolean, message: string }> => {
     try {
       const response = await businessDomainApi.post(`/api/ModelPrediction/Portfolio/${id}/refresh`);
@@ -237,7 +226,6 @@ export const businessDomainService = {
     }
   },
 
-  // Portfolio Stock endpoints
   getPortfolioStocks: async (portfolioId: string): Promise<PortfolioStock[]> => {
     const response = await businessDomainApi.get(`/api/PortfolioStock/portfolio/${portfolioId}`);
     return response.data;
@@ -262,16 +250,13 @@ export const businessDomainService = {
     await businessDomainApi.delete(`/api/PortfolioStock/${id}`);
   },
 
-  // Portfolio Optimization endpoints
   getPortfolioOptimization: async (portfolioId?: string): Promise<PortfolioOptimizationResult> => {
     const response = await businessDomainApi.get('/api/PortfolioOptimization/optimize', {
       params: { portfolioId }
     });
     
-    // Sanitize the data
     const data = response.data;
     
-    // Ensure recommendations are properly formatted
     if (data.recommendations && Array.isArray(data.recommendations)) {
       data.recommendations = data.recommendations.map((rec: any) => ({
         symbol: rec.symbol || '',
@@ -287,14 +272,12 @@ export const businessDomainService = {
       data.recommendations = [];
     }
     
-    // Ensure other fields have default values
     data.confidence = data.confidence !== undefined ? data.confidence : 0;
     data.explanation = data.explanation || 'No explanation provided';
     data.timestamp = data.timestamp || new Date().toISOString();
     data.successful = data.successful !== false;
     data.status = data.status || '';
     
-    // Preserve metrics if they exist
     if (data.metrics) {
       data.metrics = {
         sharpeRatio: parseFloat(data.metrics.sharpeRatio) || 0,
@@ -322,8 +305,6 @@ export const businessDomainService = {
         message: response.data.message || 'Optimization applied successfully' 
       };
     } catch (error: any) {
-      console.error('Error applying optimization:', error);
-      // Handle 404 case specifically
       if (error.response && error.response.status === 404) {
         return { 
           successful: false, 
@@ -345,7 +326,6 @@ export const businessDomainService = {
         message: response.data.message || 'Optimization canceled successfully' 
       };
     } catch (error: any) {
-      console.error('Error canceling optimization:', error);
       if (error.response && error.response.status === 404) {
         return { 
           successful: false, 
@@ -359,7 +339,6 @@ export const businessDomainService = {
     }
   },
 
-  // Transaction endpoints
   getUserTransactions: async (): Promise<Transaction[]> => {
     const response = await businessDomainApi.get('/api/Transaction');
     return response.data;
@@ -379,37 +358,27 @@ export const businessDomainService = {
     await businessDomainApi.delete(`/api/Transaction/${transactionId}`);
   },
 
-  // Update this method to use the dedicated endpoint
   isMarketOpen: async (): Promise<boolean> => {
     try {
-      console.log("Checking market status via API endpoint...");
       const response = await businessDomainApi.get('/api/MarketData/IsMarketOpen');
       const isOpen = response.data;
-      console.log(`Market is ${isOpen ? "OPEN" : "CLOSED"} according to API endpoint`);
       return isOpen;
     } catch (err) {
-      console.error("Error checking market status:", err);
-      // On error, assume market is open to avoid showing false "closed" indicators
+      console.error('Error checking market status:', err);
       return true;
     }
   },
 
-  // Admin related endpoints
   isAdmin: async (): Promise<boolean> => {
     try {
-      console.log('Calling isAdmin endpoint...');
       const response = await businessDomainApi.get('/api/User/is-admin');
-      console.log('isAdmin response:', response.data);
       
-      // The backend is returning an object with a message, not a direct boolean
       if (typeof response.data === 'object' && response.data.message === "User is an admin") {
         return true;
       } else if (typeof response.data === 'boolean') {
-        // Also handle case where API might return boolean directly in the future
         return response.data;
       }
       
-      // Default to false if no match
       return false;
     } catch (error) {
       console.error('Error checking admin status:', error);
@@ -417,12 +386,9 @@ export const businessDomainService = {
     }
   },
 
-  // AI Model endpoints
   getAllModels: async (): Promise<AIModel[]> => {
     try {
-      console.log('Calling getAllModels endpoint...');
       const response = await businessDomainApi.get('/api/AIModel');
-      console.log('getAllModels response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching AI models:', error);
@@ -432,9 +398,7 @@ export const businessDomainService = {
 
   getModelById: async (id: number): Promise<AIModel> => {
     try {
-      console.log(`Calling getModelById endpoint for id ${id}...`);
       const response = await businessDomainApi.get(`/api/AIModel/${id}`);
-      console.log('getModelById response:', response.data);
       return response.data;
     } catch (error) {
       console.error(`Error fetching AI model with id ${id}:`, error);
@@ -442,31 +406,25 @@ export const businessDomainService = {
     }
   },
 
-  // Model Performance endpoints
   getTrainingStatus: async (): Promise<Record<number, boolean>> => {
     try {
-      console.log('Calling getTrainingStatus endpoint...');
       const response = await businessDomainApi.get('/api/ModelPerformance/training-status');
-      console.log('getTrainingStatus response:', response.data);
       
-      // If we get an empty object, create a default one
       if (response.data && Object.keys(response.data).length === 0) {
-        console.log('Empty training status, returning default status object');
         return {
-          1: false, // Apollo
-          2: false, // Ignis
-          3: false  // Gaia
+          1: false,
+          2: false,
+          3: false
         };
       }
       
       return response.data;
     } catch (error) {
       console.error('Error fetching training status:', error);
-      // Return a default status object on error
       return {
-        1: false, // Apollo
-        2: false, // Ignis
-        3: false  // Gaia
+        1: false,
+        2: false,
+        3: false
       };
     }
   },
@@ -481,14 +439,11 @@ export const businessDomainService = {
     return response.data;
   },
 
-  // Log endpoints
   getLogs: async (count: number = 50): Promise<LogEntry[]> => {
     try {
-      console.log(`Fetching ${count} recent logs...`);
       const response = await businessDomainApi.get('/api/Log', {
         params: { count }
       });
-      console.log('Logs response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching logs:', error);

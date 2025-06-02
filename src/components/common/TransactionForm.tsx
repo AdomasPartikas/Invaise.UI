@@ -160,7 +160,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       }
     } catch (err) {
       setError('An error occurred while creating the transaction');
-      console.error(err);
     } finally {
       setSubmitting(false);
     }

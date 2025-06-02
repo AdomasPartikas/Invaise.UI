@@ -16,7 +16,6 @@ import NotificationContainer from './components/common/Notification';
 import SessionManager from './components/SessionManager';
 import { businessDomainService } from './api/businessDomainService';
 
-// Create a theme instance
 const theme = createTheme({
   palette: {
     primary: {
@@ -31,7 +30,6 @@ const theme = createTheme({
   },
 });
 
-// Protected Route component that uses useAuth
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -47,7 +45,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Protected Admin Route component that checks if user is admin
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -87,7 +84,6 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Session Manager Wrapper - only shows when user is authenticated
 const SessionManagerWrapper = () => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <SessionManager warningTime={5} /> : null;
@@ -98,7 +94,6 @@ function App() {
     <MuiThemeProvider theme={theme}>
       <StyledThemeProvider theme={theme}>
         <CssBaseline />
-        {/* AuthProvider needs to be outside of Router since components inside Router use useAuth */}
         <AuthProvider>
           <NotificationProvider>
             <MarketStatusProvider>
@@ -109,7 +104,6 @@ function App() {
                   <Routes>
                     <Route path="/login" element={<Login />} />
 
-                    {/* Protected routes with PortfolioProvider */}
                     <Route 
                       path="/" 
                       element={
@@ -190,7 +184,6 @@ function App() {
                       } 
                     />
                     
-                    {/* Catch-all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Router>

@@ -12,7 +12,7 @@ interface PortfolioChartProps {
   title?: string;
   portfolioId: string;
   initialData?: HistoricalDataPoint[];
-  currentPortfolioValue?: number; // Add current value prop for consistency
+  currentPortfolioValue?: number;
 }
 
 const PortfolioChart: React.FC<PortfolioChartProps> = ({ 
@@ -26,24 +26,20 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(initialData.length === 0);
   const [currentValue, setCurrentValue] = useState<number>(currentPortfolioValue || 0);
 
-  // Update current value when prop changes
   useEffect(() => {
     if (currentPortfolioValue !== undefined) {
       setCurrentValue(currentPortfolioValue);
     }
   }, [currentPortfolioValue]);
 
-  // Fetch historical data when component mounts or time range changes
   useEffect(() => {
     if (!portfolioId) return;
     fetchHistoricalData();
   }, [portfolioId, timeRange, currentValue]);
 
-  // Fetch historical data from API
   const fetchHistoricalData = async () => {
     setIsLoading(true);
     try {
-      // Calculate date range based on selected time range
       const endDate = new Date();
       let startDate = new Date();
       
@@ -68,14 +64,11 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
           break;
       }
       
-      // Format dates for API
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
-      // Get portfolio stocks
       const portfolioStocks = await businessDomainService.getPortfolioStocks(portfolioId);
       
-      // Ensure we have the current portfolio value
       let portfolioTotal = currentValue;
       if (portfolioTotal === 0 && portfolioStocks.length > 0) {
         portfolioTotal = portfolioStocks.reduce(
@@ -85,7 +78,6 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
         setCurrentValue(portfolioTotal);
       }
       
-      // If no stocks or zero total value, exit early
       if (portfolioTotal === 0 || portfolioStocks.length === 0) {
         setPortfolioData([{
           date: new Date().toISOString().split('T')[0],
@@ -95,16 +87,13 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
         return;
       }
       
-      // Get unique symbols and calculate their contribution ratios
       const symbolMap: Record<string, boolean> = {};
       const stocksMap: Record<string, { quantity: number, ratio: number }> = {};
       
-      // Calculate the current ratio of each stock in the portfolio
       portfolioStocks.forEach(stock => {
         symbolMap[stock.symbol] = true;
       });
       
-      // Calculate ratio for each stock (how much it contributes to the total portfolio)
       portfolioStocks.forEach(stock => {
         stocksMap[stock.symbol] = {
           quantity: stock.quantity,
@@ -114,10 +103,8 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
       
       const symbols = Object.keys(symbolMap);
       
-      // First, get the historical relative performance of each symbol
       const symbolHistoricalData: Record<string, Record<string, number>> = {};
       
-      // Fetch historical price data for each symbol
       const promises = symbols.map(async (symbol) => {
         try {
           const data = await businessDomainService.getHistoricalMarketData(
@@ -127,7 +114,6 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
           );
           
           if (data.length > 0) {
-            // Store each day's closing price for this symbol
             symbolHistoricalData[symbol] = {};
             data.forEach(point => {
               if (point.close) {
@@ -143,47 +129,34 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
       
       await Promise.all(promises);
       
-      // Create normalized price index for each symbol 
-      // where today's price = 1.0 (normalized to today's price)
       const normalizedSymbolData: Record<string, Record<string, number>> = {};
       
-      // 1. Get the latest available price for each symbol
       const latestPrices: Record<string, number> = {};
       symbols.forEach(symbol => {
         if (symbolHistoricalData[symbol]) {
-          // Get all dates we have data for this symbol
           const dates = Object.keys(symbolHistoricalData[symbol]).sort();
           if (dates.length > 0) {
-            // Use the most recent price as the normalizer
             const latestDate = dates[dates.length - 1];
             latestPrices[symbol] = symbolHistoricalData[symbol][latestDate];
           }
         }
       });
       
-      // 2. Calculate normalized prices (relative to the latest price)
       symbols.forEach(symbol => {
         if (symbolHistoricalData[symbol] && latestPrices[symbol]) {
           normalizedSymbolData[symbol] = {};
           const latestPrice = latestPrices[symbol];
           
           Object.entries(symbolHistoricalData[symbol]).forEach(([date, price]) => {
-            // Calculate price as percentage of latest price (1.0 = 100% of latest price)
             normalizedSymbolData[symbol][date] = price / latestPrice;
           });
         }
       });
       
-      // Now calculate historical portfolio values using:
-      // 1. Today's portfolio allocation ratio (how much each stock contributes)
-      // 2. Normalized historical prices (how prices moved relative to today)
       const portfolioHistory: Record<string, number> = {};
       
-      // For each date, calculate the portfolio value 
-      // This respects the current allocation while reflecting historical price changes
       const allDates = new Set<string>();
       
-      // Collect all dates that we have data for
       symbols.forEach(symbol => {
         if (normalizedSymbolData[symbol]) {
           Object.keys(normalizedSymbolData[symbol]).forEach(date => {
@@ -192,7 +165,6 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
         }
       });
       
-      // Calculate historical portfolio value for each date
       Array.from(allDates).sort().forEach(date => {
         let dateTotal = 0;
         symbols.forEach(symbol => {
@@ -200,29 +172,24 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
               normalizedSymbolData[symbol][date] !== undefined &&
               stocksMap[symbol]) {
             
-            // How much this stock contributes to the total portfolio value today
             const currentContribution = portfolioTotal * stocksMap[symbol].ratio;
             
-            // Adjust current contribution by the historical normalized price
             const historicalContribution = currentContribution * normalizedSymbolData[symbol][date];
             
             dateTotal += historicalContribution;
           }
         });
         
-        // Only add dates with values > 0
         if (dateTotal > 0) {
           portfolioHistory[date] = dateTotal;
         }
       });
       
-      // Convert to array format for the chart
       const chartData = Object.entries(portfolioHistory)
         .map(([date, value]) => ({ date, value }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       if (chartData.length > 0) {
-        // Add today's exact value to ensure the chart reflects current portfolio value
         const today = new Date().toISOString().split('T')[0];
         const lastDate = chartData[chartData.length - 1].date;
         
@@ -232,13 +199,11 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
             value: portfolioTotal
           });
         } else {
-          // Ensure last data point is exactly the current portfolio value
           chartData[chartData.length - 1].value = portfolioTotal;
         }
         
         setPortfolioData(chartData);
       } else {
-        // Fallback if no historical data found
         setPortfolioData([{
           date: new Date().toISOString().split('T')[0],
           value: portfolioTotal
@@ -246,7 +211,6 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
       }
     } catch (error) {
       console.error("Error fetching historical data:", error);
-      // Fallback
       setPortfolioData([{
         date: new Date().toISOString().split('T')[0],
         value: currentValue || 0
@@ -256,22 +220,19 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
     }
   };
 
-  // Handle time range change
   const handleTimeRangeChange = (range: '1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL') => {
     setTimeRange(range);
   };
 
-  // Get data based on time range
   const getDisplayData = () => {
     return portfolioData;
   };
 
-  // Calculate performance metrics
   const calculatePerformance = () => {
     if (portfolioData.length === 0) {
       return {
         startValue: 0,
-        endValue: currentValue, // Use current value from props/state
+        endValue: currentValue,
         absoluteChange: 0,
         percentageChange: 0
       };
@@ -295,7 +256,6 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({
   const performance = calculatePerformance();
   const isPositive = performance.absoluteChange >= 0;
 
-  // Format function for chart X-axis ticks
   const formatXAxisTick = (value: string) => {
     const date = new Date(value);
     

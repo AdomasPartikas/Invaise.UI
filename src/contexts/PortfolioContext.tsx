@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { businessDomainService, Portfolio, PortfolioStock, PortfolioOptimizationResult } from '../api/businessDomainService';
-import { businessDomainApi } from '../api/api';
 
 interface PortfolioContextType {
   portfolios: Portfolio[];
@@ -34,20 +33,16 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Add a ref to track in-progress requests
   const pendingRequests = useRef<Record<string, boolean>>({});
   const lastFetchTimestamp = useRef<Record<string, number>>({});
   
-  // Minimum time between duplicate requests in milliseconds
-  const REQUEST_THROTTLE_TIME = 2000; // 2 seconds
+  const REQUEST_THROTTLE_TIME = 2000;
 
-  // Extract optimization ID from error message
   const extractOptimizationId = (errorMessage: string): string | null => {
     const match = errorMessage.match(/Optimization ID: ([a-f0-9-]+)/i);
     return match ? match[1] : null;
   };
 
-  // Fetch all user portfolios
   const fetchPortfolios = async () => {
     setIsLoading(true);
     setError(null);
@@ -55,7 +50,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       const data = await businessDomainService.getUserPortfolios();
       setPortfolios(data);
       
-      // If we have portfolios but no current selection, select the first one
       if (data.length > 0 && !currentPortfolio) {
         setCurrentPortfolio(data[0]);
         await fetchPortfolioStocks(data[0].id);
@@ -68,7 +62,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  // Select a portfolio by ID
   const selectPortfolio = async (portfolioId: string) => {
     if (currentPortfolio?.id === portfolioId) return;
     
@@ -79,7 +72,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       setCurrentPortfolio(portfolio);
       await fetchPortfolioStocks(portfolioId);
       
-      // Reset optimization when changing portfolios
       setOptimization(null);
       setOptimizationError(null);
       setInProgressOptimizationId(null);
@@ -91,21 +83,17 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  // Fetch stocks for a portfolio
   const fetchPortfolioStocks = async (portfolioId: string) => {
-    // Skip if we have a pending request for this portfolio
     if (pendingRequests.current[portfolioId]) {
       return;
     }
     
-    // Check if we recently made this same request
     const now = Date.now();
     const lastFetch = lastFetchTimestamp.current[portfolioId] || 0;
     if (now - lastFetch < REQUEST_THROTTLE_TIME) {
       return;
     }
     
-    // Mark this request as pending
     pendingRequests.current[portfolioId] = true;
     lastFetchTimestamp.current[portfolioId] = now;
     
@@ -119,73 +107,57 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       setError('Failed to fetch portfolio stocks');
     } finally {
       setIsLoading(false);
-      // Clear pending flag after a small delay to prevent immediate retry
       setTimeout(() => {
         pendingRequests.current[portfolioId] = false;
       }, 500);
     }
   };
 
-  // Refresh portfolio to get latest Gaia prediction
   const refreshPortfolio = async (portfolioId: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Request a new Gaia prediction for this portfolio
       const result = await businessDomainService.refreshPortfolio(portfolioId);
       
       if (result.success) {
-        // Refresh the portfolio stocks after getting new prediction
         await fetchPortfolioStocks(portfolioId);
         return true;
       } else {
-        console.warn('Failed to get new Gaia prediction:', result.message);
         return false;
       }
     } catch (err) {
       console.error('Error getting new Gaia prediction:', err);
-      // We'll still continue even if getting a new prediction fails
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Get portfolio optimization recommendation
   const getPortfolioOptimization = async (portfolioId?: string) => {
     setOptimizationLoading(true);
     setOptimizationError(null);
     try {
-      // Use current portfolio ID if none provided
       const targetPortfolioId = portfolioId || currentPortfolio?.id;
       if (!targetPortfolioId) {
         throw new Error('No portfolio selected');
       }
       
-      // First, ask Gaia for a fresh prediction for this portfolio
       try {
-        console.log('Requesting fresh Gaia prediction before optimization...');
         await refreshPortfolio(targetPortfolioId);
       } catch (refreshErr) {
         console.warn('Failed to get fresh Gaia prediction before optimization, proceeding with existing data', refreshErr);
       }
       
-      // Then get the optimization based on the latest prediction
-      console.log('Getting portfolio optimization with latest Gaia prediction...');
       const result = await businessDomainService.getPortfolioOptimization(targetPortfolioId);
       
-      // Process recommendations to ensure values are valid numbers
       if (result.recommendations && result.recommendations.length > 0) {
         result.recommendations = result.recommendations.map(rec => {
-          // Use type assertion to access the raw properties from the API
           const rawRec = rec as any;
           const processedRec = {
             ...rec,
-            // Use targetQuantity as recommendedQuantity if present
             currentQuantity: typeof rec.currentQuantity === 'number' && !isNaN(rec.currentQuantity) ? rec.currentQuantity : 0,
           };
           
-          // Handle both targetQuantity and recommendedQuantity
           if (typeof rawRec.targetQuantity === 'number' && !isNaN(rawRec.targetQuantity)) {
             processedRec.recommendedQuantity = rawRec.targetQuantity;
           } else if (typeof rec.recommendedQuantity === 'number' && !isNaN(rec.recommendedQuantity)) {
@@ -198,24 +170,18 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
       }
       
-      // Store the optimization result
       setOptimization(result);
       
-      // Get the latest optimization from history if we need to
       if (!result.optimizationId) {
         try {
-          console.log('Optimization missing ID, checking history for most recent optimization...');
           const history = await businessDomainService.getOptimizationHistory(targetPortfolioId);
           if (history && history.length > 0) {
-            // Sort by timestamp descending to get the most recent one
             const sortedHistory = [...history].sort((a, b) => 
               new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
             
-            // Update with the latest optimization that has an ID
             const latestWithId = sortedHistory.find(item => item.optimizationId);
             if (latestWithId && latestWithId.optimizationId) {
-              console.log(`Found optimization ID from history: ${latestWithId.optimizationId}`);
               result.optimizationId = latestWithId.optimizationId;
               setOptimization(result);
             }
@@ -229,12 +195,10 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
     } catch (err: any) {
       console.error('Error fetching portfolio optimization:', err);
       
-      // Special handling for conflict error (status 409)
       if (err.response && err.response.status === 409) {
         const errorMessage = err.response.data || "There is already an optimization in progress.";
         setOptimizationError(errorMessage);
         
-        // Try to extract the optimization ID from the error message
         const extractedId = extractOptimizationId(errorMessage);
         if (extractedId) {
           setInProgressOptimizationId(extractedId);
@@ -249,7 +213,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  // Apply optimization recommendation
   const applyOptimizationRecommendation = async (optimizationId: string) => {
     setIsLoading(true);
     setError(null);
@@ -257,12 +220,11 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       const result = await businessDomainService.applyOptimizationRecommendation(optimizationId);
       
       if (result.successful) {
-        // Refresh portfolio stocks after applying optimization
         if (currentPortfolio) {
           await fetchPortfolioStocks(currentPortfolio.id);
         }
-        setOptimization(null); // Clear the optimization since it's been applied
-        setInProgressOptimizationId(null); // Clear in-progress ID if set
+        setOptimization(null);
+        setInProgressOptimizationId(null);
         return true;
       } else {
         setError(result.message || 'Failed to apply optimization');
@@ -277,7 +239,6 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
   
-  // Cancel an optimization
   const cancelOptimization = async (optimizationId: string) => {
     setIsLoading(true);
     setError(null);
@@ -285,17 +246,14 @@ export const PortfolioProvider: React.FC<{ children: ReactNode }> = ({ children 
       const result = await businessDomainService.cancelOptimization(optimizationId);
       
       if (result.successful) {
-        // Refresh portfolio stocks after canceling optimization
         if (currentPortfolio) {
           await fetchPortfolioStocks(currentPortfolio.id);
         }
         
-        // Clear optimizations
         if (inProgressOptimizationId === optimizationId) {
           setInProgressOptimizationId(null);
         }
         
-        // If the current displayed optimization is the one being canceled, clear it
         if (optimization?.optimizationId === optimizationId) {
           setOptimization(null);
         }

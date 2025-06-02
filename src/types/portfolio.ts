@@ -54,7 +54,7 @@ export interface CreatePortfolioStockRequest {
   percentageChange?: number;
   purchaseDate: string;
   investmentType: InvestmentType;
-  investmentAmount?: number; // Only used when investmentType is Money
+  investmentAmount?: number;
 }
 
 export interface UpdatePortfolioStockRequest {

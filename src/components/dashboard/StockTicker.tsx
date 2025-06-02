@@ -10,7 +10,7 @@ interface StockTickerData {
   previousPrice: number;
   change: number;
   changePercent: number;
-  isHistorical?: boolean; // Flag to indicate if data is from historical endpoint
+  isHistorical?: boolean;
 }
 
 const StockTicker: React.FC = () => {
@@ -21,45 +21,30 @@ const StockTicker: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch market data for ticker symbols
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        console.log("StockTicker: Starting to fetch market data");
         setError(null);
         
-        // Get all available symbols
         const symbols = await businessDomainService.getAllUniqueSymbols();
-        console.log("StockTicker: Retrieved symbols:", symbols);
         
         if (symbols && symbols.length > 0) {
           const tickerData: StockTickerData[] = [];
           
-          // Process only the first 15 symbols to avoid too many requests
           const symbolsToProcess = symbols.slice(0, 15);
-          console.log("StockTicker: Processing symbols:", symbolsToProcess);
           
           for (const symbol of symbolsToProcess) {
             try {
-              // Try to get latest intraday data first
-              console.log(`StockTicker: Fetching latest intraday data for ${symbol}`);
               let intradayData = await businessDomainService.getLatestIntradayMarketData(symbol, 2);
-              
-              console.log(`StockTicker: Received ${intradayData?.length || 0} intraday data points for ${symbol}`);
-              
+
               if (intradayData && intradayData.length > 1) {
-                // Sort data by timestamp descending
                 const sortedData = [...intradayData].sort(
                   (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
                 );
                 
-                // Get current and previous price points
                 const current = sortedData[0];
                 const previous = sortedData[1];
                 
-                console.log(`StockTicker: ${symbol} current price: ${current.current}, previous: ${previous.current}`);
-                
-                // Calculate change and percentage
                 const change = current.current - previous.current;
                 const changePercent = (change / previous.current) * 100;
                 
@@ -72,10 +57,7 @@ const StockTicker: React.FC = () => {
                   isHistorical: false
                 });
               } else if (intradayData && intradayData.length === 1) {
-                // If only one data point is available, use it with no change
                 const current = intradayData[0];
-                
-                console.log(`StockTicker: ${symbol} only has one price point: ${current.current}`);
                 
                 tickerData.push({
                   symbol,
@@ -86,14 +68,10 @@ const StockTicker: React.FC = () => {
                   isHistorical: false
                 });
               } else {
-                // If no intraday data, try to get historical data as fallback
-                console.log(`StockTicker: No intraday data for ${symbol}, trying historical data`);
-                
                 try {
-                  // Get the last 2 days of historical data
                   const end = new Date();
                   const start = new Date();
-                  start.setDate(start.getDate() - 7); // Get a week of data to ensure we have enough
+                  start.setDate(start.getDate() - 7);
                   
                   const historicalData = await businessDomainService.getHistoricalMarketData(
                     symbol,
@@ -101,10 +79,8 @@ const StockTicker: React.FC = () => {
                     end.toISOString()
                   );
                   
-                  console.log(`StockTicker: Retrieved ${historicalData?.length || 0} historical data points for ${symbol}`);
                   
                   if (historicalData && historicalData.length > 1) {
-                    // Filter out undefined close values and sort by date
                     const validData = historicalData
                       .filter(d => d.close !== undefined && d.close !== null)
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -113,7 +89,6 @@ const StockTicker: React.FC = () => {
                       const current = validData[0];
                       const previous = validData[1];
                       
-                      console.log(`StockTicker: ${symbol} historical close: ${current.close}, previous: ${previous.close}`);
                       
                       if (current.close && previous.close) {
                         const change = current.close - previous.close;
@@ -129,8 +104,6 @@ const StockTicker: React.FC = () => {
                         });
                       }
                     } else if (validData.length === 1 && validData[0].close) {
-                      // If only one point with close value
-                      console.log(`StockTicker: ${symbol} only has one historical point: ${validData[0].close}`);
                       
                       tickerData.push({
                         symbol,
@@ -151,7 +124,6 @@ const StockTicker: React.FC = () => {
             }
           }
           
-          console.log("StockTicker: Final ticker data:", tickerData);
           setStockData(tickerData);
           
           if (tickerData.length === 0) {
@@ -171,7 +143,6 @@ const StockTicker: React.FC = () => {
     
     fetchMarketData();
     
-    // Refresh every 5 minutes
     const interval = setInterval(() => {
       fetchMarketData();
     }, 5 * 60 * 1000);
@@ -179,14 +150,13 @@ const StockTicker: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll animation
   useEffect(() => {
     if (!play || !scrollRef.current || stockData.length === 0) return;
 
     const scrollContainer = scrollRef.current;
     let animationId: number;
     let startTime: number;
-    const scrollDuration = 50000; // Time to scroll through all items
+    const scrollDuration = 50000;
     const totalScrollWidth = scrollContainer.scrollWidth - scrollContainer.clientWidth;
 
     const step = (timestamp: number) => {
@@ -194,7 +164,6 @@ const StockTicker: React.FC = () => {
       const elapsed = timestamp - startTime;
       const scrollPosition = (elapsed / scrollDuration) * totalScrollWidth;
       
-      // Reset scroll to start when reached the end
       if (scrollPosition >= totalScrollWidth) {
         startTime = timestamp;
         scrollContainer.scrollLeft = 0;
@@ -212,7 +181,6 @@ const StockTicker: React.FC = () => {
     };
   }, [play, stockData]);
 
-  // Pause scrolling on hover
   const handleMouseEnter = () => setPlay(false);
   const handleMouseLeave = () => setPlay(true);
 
@@ -287,9 +255,9 @@ const StockTicker: React.FC = () => {
           display: 'flex',
           overflowX: 'auto',
           whiteSpace: 'nowrap',
-          scrollbarWidth: 'none', // Firefox
-          '&::-webkit-scrollbar': { display: 'none' }, // Chrome
-          '-ms-overflow-style': 'none', // IE/Edge
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+          '-ms-overflow-style': 'none',
         }}
       >
         <Box sx={{ display: 'flex', gap: 3, px: 3 }}>
@@ -345,7 +313,7 @@ const StockTicker: React.FC = () => {
                   fontWeight: 'bold',
                   fontSize: '0.7rem',
                   height: 20,
-                  opacity: stock.isHistorical ? 0.8 : 1, // Slightly dimmed for historical data
+                  opacity: stock.isHistorical ? 0.8 : 1,
                   '& .MuiChip-label': { px: 1 }
                 }} 
               />

@@ -18,12 +18,10 @@ const Dashboard: React.FC = () => {
         </Box>
       ) : (
         <>
-          {/* Portfolio Overview */}
           <Box sx={{ mt: 3 }}>
             <PortfolioOverview />
           </Box>
           
-          {/* Portfolio Holdings */}
           <Box sx={{ mt: 3 }}>
             <PortfolioHoldings />
           </Box>

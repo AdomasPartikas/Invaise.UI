@@ -36,32 +36,26 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, onSkip, i
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Handle text input changes for personal info
   const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPersonalInfo(prev => ({ ...prev, [name]: value }));
     
-    // Clear error when field is updated
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
-  // Handle slider change (risk tolerance)
   const handleSliderChange = (_: Event, value: number | number[]) => {
     setPreferences(prev => ({ ...prev, riskTolerance: value as number }));
   };
 
-  // Handle select change (investment horizon)
   const handleInvestmentHorizonChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
     setPreferences(prev => ({ ...prev, investmentHorizon: e.target.value as string }));
   };
 
-  // Validate form
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     
-    // Date of birth validation
     if (personalInfo.dateOfBirth) {
       const dob = new Date(personalInfo.dateOfBirth);
       const now = new Date();
@@ -70,7 +64,6 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, onSkip, i
       if (age > 120) newErrors.dateOfBirth = 'Please enter a valid date of birth';
     }
     
-    // Phone validation (simple check)
     if (personalInfo.phoneNumber && !/^[0-9\s\-+()]{8,20}$/.test(personalInfo.phoneNumber)) {
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
@@ -79,7 +72,6 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, onSkip, i
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -88,7 +80,6 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({ onSubmit, onSkip, i
     }
   };
 
-  // Handle skip
   const handleSkip = () => {
     if (onSkip) {
       onSkip();

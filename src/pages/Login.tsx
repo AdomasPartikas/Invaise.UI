@@ -16,9 +16,7 @@ import { Visibility, VisibilityOff, Person, Email, Lock } from '@mui/icons-mater
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import PersonalInfoForm from '../components/auth/PersonalInfoForm';
-import { AxiosError } from 'axios';
 
-// Gradient background
 const gradientBackground = 'linear-gradient(135deg, #7467ef 0%, #c662e0 100%)';
 
 const Login: React.FC = () => {
@@ -26,62 +24,51 @@ const Login: React.FC = () => {
   const { addNotification } = useNotification();
   const navigate = useNavigate();
   
-  // Form states
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [openPersonalInfoDialog, setOpenPersonalInfoDialog] = useState(false);
   const [newUserId, setNewUserId] = useState('');
   
-  // Form data
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   
-  // Error states
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [nameError, setNameError] = useState('');
   
-  // Toggle between login and register mode
   const toggleMode = () => {
     setIsLoginMode(!isLoginMode);
     setIsForgotPasswordMode(false);
-    // Clear form fields and errors when switching modes
     setEmail('');
     setPassword('');
     setName('');
     clearErrors();
   };
   
-  // Toggle to forgot password mode
   const toggleForgotPasswordMode = () => {
     setIsForgotPasswordMode(true);
     setIsLoginMode(false);
-    // Clear form fields and errors
     setEmail('');
     setPassword('');
     setName('');
     clearErrors();
   };
   
-  // Back to login mode from forgot password
   const backToLogin = () => {
     setIsForgotPasswordMode(false);
     setIsLoginMode(true);
-    // Clear form fields and errors
     setEmail('');
     clearErrors();
   };
 
-  // Clear all error messages
   const clearErrors = () => {
     setEmailError('');
     setPasswordError('');
     setNameError('');
   };
   
-  // Validate email
   const validateEmail = (email: string): boolean => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email) {
@@ -95,7 +82,6 @@ const Login: React.FC = () => {
     return true;
   };
   
-  // Validate password
   const validatePassword = (password: string): boolean => {
     if (!password) {
       setPasswordError('Password is required');
@@ -108,7 +94,6 @@ const Login: React.FC = () => {
     return true;
   };
   
-  // Validate name
   const validateName = (name: string): boolean => {
     if (!name) {
       setNameError('Name is required');
@@ -121,7 +106,6 @@ const Login: React.FC = () => {
     return true;
   };
   
-  // Extract error message from an error object
   const getErrorMessage = (error: any): string => {
     if (error.userMessage) {
       return error.userMessage;
@@ -140,11 +124,9 @@ const Login: React.FC = () => {
     return 'An unexpected error occurred. Please try again.';
   };
   
-  // Handle login form submission
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
     
@@ -162,11 +144,9 @@ const Login: React.FC = () => {
     }
   };
   
-  // Handle forgot password form submission
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate email
     const isEmailValid = validateEmail(email);
     
     if (!isEmailValid) {
@@ -176,7 +156,6 @@ const Login: React.FC = () => {
     try {
       const result = await forgotPassword(email);
       addNotification('success', 'If your email exists in our system, a password reset email has been sent.');
-      // Return to login form
       backToLogin();
     } catch (error: any) {
       console.error('Forgot password error:', error);
@@ -184,11 +163,9 @@ const Login: React.FC = () => {
     }
   };
   
-  // Handle registration form submission
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     const isEmailValid = validateEmail(email);
     const isPasswordValid = validatePassword(password);
     const isNameValid = validateName(name);
@@ -206,7 +183,6 @@ const Login: React.FC = () => {
       
       addNotification('success', 'Registration successful!');
       
-      // Open personal info form after successful registration
       const currentUser = JSON.parse(localStorage.getItem('invaise_user') || '{}');
       setNewUserId(currentUser.id || '');
       setOpenPersonalInfoDialog(true);
@@ -216,7 +192,6 @@ const Login: React.FC = () => {
     }
   };
   
-  // Handle personal info submission
   const handlePersonalInfoSubmit = async (personalInfo: any) => {
     try {
       await updatePersonalInfo(newUserId, personalInfo);
@@ -229,7 +204,6 @@ const Login: React.FC = () => {
     }
   };
   
-  // Render form title based on current mode
   const renderFormTitle = () => {
     if (isForgotPasswordMode) {
       return 'Forgot Password';
@@ -237,7 +211,6 @@ const Login: React.FC = () => {
     return isLoginMode ? 'Login' : 'Create Account';
   };
 
-  // Render form based on current mode
   const renderForm = () => {
     if (isForgotPasswordMode) {
       return (

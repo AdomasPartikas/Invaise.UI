@@ -3,12 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../api/authService';
 import { SESSION_EXPIRED_EVENT, SESSION_ABOUT_TO_EXPIRE_EVENT, dispatchSessionEvent } from '../api/api';
 
-// Material UI components (assuming your project uses Material UI)
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Snackbar } from '@mui/material';
 
-// Interface for props
 interface SessionManagerProps {
-  // Time in minutes before token expiry to show warning (default: 5 minutes)
   warningTime?: number;
 }
 
@@ -19,14 +16,11 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Handle session expired event
   useEffect(() => {
     const handleSessionExpired = () => {
-      console.log('Session expired event received');
       setShowExpiredDialog(true);
     };
 
-    // Listen for session expired event
     document.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
 
     return () => {
@@ -34,14 +28,11 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
     };
   }, []);
 
-  // Handle session about to expire event
   useEffect(() => {
     const handleSessionWarning = () => {
-      console.log('Session about to expire event received');
       setShowWarningDialog(true);
     };
 
-    // Listen for session warning event
     document.addEventListener(SESSION_ABOUT_TO_EXPIRE_EVENT, handleSessionWarning);
 
     return () => {
@@ -49,51 +40,42 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
     };
   }, []);
 
-  // Timer to check session expiry
   useEffect(() => {
     const checkSessionStatus = () => {
       const expiry = authService.getTokenExpiry();
 
-      // No expiry date, no session to monitor
       if (!expiry) return;
 
       const now = new Date();
       const warningThreshold = new Date(expiry.getTime() - warningTime * 60 * 1000);
 
       if (now > expiry) {
-        // Token is already expired
         dispatchSessionEvent(SESSION_EXPIRED_EVENT);
       } else if (now > warningThreshold && !showWarningDialog && !showExpiredDialog) {
-        // Token is about to expire and dialogs aren't already showing
         dispatchSessionEvent(SESSION_ABOUT_TO_EXPIRE_EVENT);
       }
     };
 
-    // Check immediately and then every minute
     checkSessionStatus();
     const interval = setInterval(checkSessionStatus, 60 * 1000);
 
     return () => clearInterval(interval);
   }, [warningTime, showWarningDialog, showExpiredDialog]);
 
-  // Handle session refresh
   const handleRefreshSession = async () => {
     setRefreshing(true);
     const result = await authService.refreshToken();
     setRefreshing(false);
 
     if (result) {
-      // Success - token refreshed
       setShowWarningDialog(false);
       setShowExpiredDialog(false);
       setShowSuccessMessage(true);
     } else {
-      // Failed to refresh token
       handleLogout();
     }
   };
 
-  // Handle logout
   const handleLogout = () => {
     authService.logout();
     setShowWarningDialog(false);
@@ -101,14 +83,12 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
     navigate('/login');
   };
 
-  // Handle close of success message
   const handleCloseSuccess = () => {
     setShowSuccessMessage(false);
   };
 
   return (
     <>
-      {/* Session Expired Dialog */}
       <Dialog
         open={showExpiredDialog}
         aria-labelledby="session-expired-dialog-title"
@@ -135,7 +115,6 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Session Warning Dialog */}
       <Dialog
         open={showWarningDialog}
         aria-labelledby="session-warning-dialog-title"
@@ -162,7 +141,6 @@ const SessionManager: React.FC<SessionManagerProps> = ({ warningTime = 5 }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Success Message */}
       <Snackbar 
         open={showSuccessMessage} 
         autoHideDuration={3000}

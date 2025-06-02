@@ -19,8 +19,6 @@ import {
   DialogActions, 
   IconButton, 
   CircularProgress, 
-  Grid, 
-  Divider,
   SelectChangeEvent,
   TextField,
   InputAdornment,
@@ -29,11 +27,10 @@ import { Add, Close, Refresh, Cancel } from '@mui/icons-material';
 import { useTransaction } from '../contexts/TransactionContext';
 import { usePortfolio } from '../contexts/PortfolioContext';
 import { businessDomainService } from '../api/businessDomainService';
-import { TransactionStatus, TransactionType } from '../types/transactions';
-import { useNotification, NotificationType } from '../context/NotificationContext';
+import { TransactionType } from '../types/transactions';
+import { useNotification } from '../context/NotificationContext';
 import { useMarketStatus } from '../contexts/MarketStatusContext';
 
-// Error boundary component
 class TransactionsErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: React.ReactNode}) {
     super(props);
@@ -78,7 +75,6 @@ const TransactionsContainer = () => {
   );
 };
 
-// Function to update owned stocks map - created at top level
 const createStockMap = (stocks: any[]): Record<string, number> => {
   const stockMap: Record<string, number> = {};
   stocks.forEach(stock => {
@@ -102,10 +98,8 @@ const Transactions: React.FC = () => {
   const [latestPrice, setLatestPrice] = useState<number | null>(null);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>('');
   
-  // Keep a reference to avoid infinite loops
   const [shouldUpdateCalculations, setShouldUpdateCalculations] = useState(false);
   
-  // Add refs at component level
   const portfolioIdRef = useRef<string>('');
   const lastTransactionRequestTime = useRef<number>(0);
   const portfolioLoadingRef = useRef<boolean>(false);
@@ -114,19 +108,17 @@ const Transactions: React.FC = () => {
   const [formData, setFormData] = useState({
     portfolioId: currentPortfolio?.id || '',
     symbol: '',
-    quantity: 1, // Default to 1 to avoid select errors
-    pricePerShare: 100, // Default to 100 to avoid select errors
+    quantity: 1,
+    pricePerShare: 100,
     type: TransactionType.Buy,
-    investmentAmount: 100, // Default to 100 to avoid select errors
+    investmentAmount: 100,
     investmentType: 'Shares' as 'Shares' | 'Amount'
   });
   
   const [ownedStocks, setOwnedStocks] = useState<Record<string, number>>({});
   
-  // Add this with the other state declarations near the top of the component
   const [processing, setProcessing] = useState(false);
   
-  // Fetch available symbols when component mounts
   useEffect(() => {
     const fetchSymbols = async () => {
       setIsLoadingSymbols(true);
@@ -144,11 +136,9 @@ const Transactions: React.FC = () => {
     fetchSymbols();
   }, [addNotification]);
   
-  // Fetch transactions on mount and when tab or selected portfolio changes
   useEffect(() => {
     const now = Date.now();
     
-    // Don't allow more than one request every 1 second
     if (now - lastTransactionRequestTime.current < 1000) {
       return;
     }
@@ -167,7 +157,6 @@ const Transactions: React.FC = () => {
     }
   }, [activeTab, currentPortfolio?.id, selectedPortfolioId, fetchUserTransactions, fetchPortfolioTransactions]);
   
-  // Load portfolios if not already loaded
   useEffect(() => {
     const now = Date.now();
     
@@ -183,14 +172,12 @@ const Transactions: React.FC = () => {
     }
   }, [activeTab, portfolios, fetchPortfolios]);
 
-  // Initialize selected portfolio when tab changes or portfolios load
   useEffect(() => {
     if (activeTab === 1 && portfolios && portfolios.length > 0 && !selectedPortfolioId) {
       setSelectedPortfolioId(currentPortfolio?.id || portfolios[0].id);
     }
   }, [activeTab, portfolios, currentPortfolio, selectedPortfolioId]);
   
-  // Set current portfolio ID in form when it changes
   useEffect(() => {
     if (currentPortfolio) {
       setFormData(prevData => {
@@ -205,7 +192,6 @@ const Transactions: React.FC = () => {
     }
   }, [currentPortfolio]);
   
-  // Update the updateOwnedStocks function with proper memoization
   const updateOwnedStocks = useCallback(() => {
     setOwnedStocks(createStockMap(portfolioStocks));
   }, [portfolioStocks]);
@@ -216,30 +202,25 @@ const Transactions: React.FC = () => {
       
       fetchPortfolioStocks(formData.portfolioId)
         .catch(err => {
-          // Silently catch errors to prevent re-renders
           console.warn('Failed to fetch portfolio stocks:', err);
         });
     }
   }, [formData.portfolioId, fetchPortfolioStocks]);
   
-  // Update stocks map when portfolio stocks change
   useEffect(() => {
     updateOwnedStocks();
   }, [updateOwnedStocks]);
   
-  // Calculate quantity or investment amount when user explicitly requests it
   useEffect(() => {
     if (!shouldUpdateCalculations || !latestPrice || latestPrice <= 0) return;
     
     if (formData.investmentType === 'Amount' && formData.investmentAmount > 0) {
-      // Calculate quantity based on investment amount
       const calculatedQuantity = formData.investmentAmount / latestPrice;
       setFormData(prevData => ({
         ...prevData,
         quantity: Number(calculatedQuantity.toFixed(4))
       }));
     } else if (formData.investmentType === 'Shares' && formData.quantity > 0) {
-      // Calculate investment amount based on quantity
       const calculatedAmount = formData.quantity * latestPrice;
       setFormData(prevData => ({
         ...prevData,
@@ -247,11 +228,9 @@ const Transactions: React.FC = () => {
       }));
     }
     
-    // Reset the flag after calculations
     setShouldUpdateCalculations(false);
   }, [shouldUpdateCalculations, latestPrice, formData.investmentType, formData.investmentAmount, formData.quantity]);
   
-  // Function to fetch latest price (called only when needed)
   const fetchLatestPrice = useCallback(async (symbol: string) => {
     if (!symbol) {
       setLatestPrice(null);
@@ -262,7 +241,6 @@ const Transactions: React.FC = () => {
     try {
       let price = 0;
       
-      // Try to get price from API
       try {
         const latestData = await businessDomainService.getLatestHistoricalMarketData(symbol, 1);
         if (latestData && latestData.length > 0 && latestData[0].close) {
@@ -271,13 +249,11 @@ const Transactions: React.FC = () => {
       } catch (apiErr) {
         console.error('Error fetching price from API:', apiErr);
         
-        // Try to get price from existing portfolio stocks as fallback
         const existingStock = portfolioStocks.find(stock => stock.symbol === symbol);
         if (existingStock && existingStock.currentTotalValue && existingStock.quantity) {
           price = existingStock.currentTotalValue / existingStock.quantity;
         } else {
-          // Final fallback - use a default price
-          price = 100; // Default to $100 if we can't get a real price
+          price = 100;
         }
       }
       
@@ -293,7 +269,6 @@ const Transactions: React.FC = () => {
     }
   }, [portfolioStocks, addNotification]);
   
-  // Handle tab change
   const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   }, []);
@@ -308,7 +283,6 @@ const Transactions: React.FC = () => {
     try {
       let success = false;
       
-      // If an optimization ID was provided, cancel the entire optimization
       if (optimizationId) {
         success = await cancelOptimization(optimizationId);
         if (success) {
@@ -317,7 +291,6 @@ const Transactions: React.FC = () => {
           addNotification('error', 'Failed to cancel optimization');
         }
       } else {
-        // Normal individual transaction cancellation
         success = await cancelTransaction(transactionId);
         if (success) {
           addNotification('success', 'Transaction canceled successfully');
@@ -326,7 +299,6 @@ const Transactions: React.FC = () => {
         }
       }
       
-      // Refresh transactions after cancellation
       if (success) {
         if (activeTab === 0) {
           fetchUserTransactions();
@@ -343,21 +315,18 @@ const Transactions: React.FC = () => {
   };
   
   const handleOpenCreateDialog = useCallback(() => {
-    // Reset form data first
     setFormData({
       portfolioId: currentPortfolio?.id || '',
       symbol: '',
-      quantity: 1, // Default to valid value
-      pricePerShare: 100, // Default to valid value
+      quantity: 1,
+      pricePerShare: 100,
       type: TransactionType.Buy,
-      investmentAmount: 100, // Default to valid value
+      investmentAmount: 100,
       investmentType: 'Shares'
     });
     
-    // Reset price data
     setLatestPrice(null);
     
-    // Then open the dialog
     setOpenCreateDialog(true);
   }, [currentPortfolio]);
   
@@ -379,7 +348,6 @@ const Transactions: React.FC = () => {
           : value
       };
       
-      // If changing investment type, reset the quantity or amount
       if (name === 'investmentType') {
         if (value === 'Shares') {
           updatedData.quantity = 1;
@@ -390,12 +358,10 @@ const Transactions: React.FC = () => {
         }
       }
       
-      // If changing symbol, fetch the price and reset some values
       if (name === 'symbol' && value) {
         updatedData.quantity = 1;
         updatedData.investmentAmount = 100;
         
-        // Fetch price outside the state update to avoid loops
         fetchLatestPrice(value as string).then(price => {
           if (price) {
             setFormData(currentData => ({
@@ -403,16 +369,13 @@ const Transactions: React.FC = () => {
               pricePerShare: price
             }));
             
-            // Trigger calculations after price update
             setShouldUpdateCalculations(true);
           }
         });
       }
       
-      // If manual quantity or investment amount changes, flag for recalculation
       if ((name === 'quantity' && updatedData.investmentType === 'Shares') || 
           (name === 'investmentAmount' && updatedData.investmentType === 'Amount')) {
-        // Schedule a calculation update after state is updated
         setTimeout(() => setShouldUpdateCalculations(true), 0);
       }
       
@@ -422,7 +385,6 @@ const Transactions: React.FC = () => {
   
   const handleCreateTransaction = useCallback(async () => {
     try {
-      // Validation
       if (!formData.portfolioId) {
         addNotification('error', 'Please select a portfolio');
         return;
@@ -443,7 +405,6 @@ const Transactions: React.FC = () => {
         return;
       }
       
-      // For sell transactions, check if user has enough stocks
       if (formData.type === TransactionType.Sell) {
         const ownedQuantity = ownedStocks[formData.symbol] || 0;
         if (formData.quantity > ownedQuantity) {
@@ -452,7 +413,6 @@ const Transactions: React.FC = () => {
         }
       }
       
-      // Create the transaction without the extra fields
       const transactionData = {
         portfolioId: formData.portfolioId,
         symbol: formData.symbol,
@@ -464,7 +424,6 @@ const Transactions: React.FC = () => {
       const success = await createTransaction(transactionData);
       
       if (success) {
-        // Check if market is closed and notify the user
         if (!isMarketOpen) {
           addNotification('warning', 'The market is currently closed. Your transaction has been created but will be put on hold until the market reopens.');
         } else {
@@ -480,12 +439,8 @@ const Transactions: React.FC = () => {
     }
   }, [formData, createTransaction, addNotification, handleCloseCreateDialog, ownedStocks, isMarketOpen]);
   
-  // Memoize filtered transactions to prevent recalculating on every render
   const filteredTransactions = useMemo(() => {
-    // Debug logging to see what statuses we're actually getting
-    console.log('All transaction statuses:', transactions.map(t => ({ id: t.id, status: t.status })));
     
-    // Function to check if status matches filter
     const matchesFilter = (t: any) => {
       if (statusFilter === 'all') return true;
       return String(t.status) === statusFilter;
@@ -496,59 +451,50 @@ const Transactions: React.FC = () => {
       : portfolioTransactions.filter(matchesFilter);
   }, [activeTab, statusFilter, transactions, portfolioTransactions]);
   
-  // Handle retry button click
   const handleRetry = useCallback(() => {
     if (activeTab === 0) {
       fetchUserTransactions();
     } else if (activeTab === 1 && selectedPortfolioId) {
-      // Only fetch if we have a valid portfolio ID
       fetchPortfolioTransactions(selectedPortfolioId);
     }
   }, [activeTab, selectedPortfolioId, fetchUserTransactions, fetchPortfolioTransactions]);
   
-  // Helper function to get quantity options based on transaction type
   const getQuantityOptions = useCallback(() => {
     if (formData.type === TransactionType.Sell) {
       const ownedQuantity = ownedStocks[formData.symbol] || 0;
-      if (ownedQuantity === 0) return [1]; // At least return a default valid option
+      if (ownedQuantity === 0) return [1];
       
-      // For sell, offer percentages of owned quantity
       return [
-        Math.max(1, Math.ceil(ownedQuantity * 0.25)), // 25%
-        Math.max(1, Math.ceil(ownedQuantity * 0.5)),  // 50%
-        Math.max(1, Math.ceil(ownedQuantity * 0.75)), // 75%
-        Math.max(1, ownedQuantity)                    // 100%
+        Math.max(1, Math.ceil(ownedQuantity * 0.25)),
+        Math.max(1, Math.ceil(ownedQuantity * 0.5)),
+        Math.max(1, Math.ceil(ownedQuantity * 0.75)),
+        Math.max(1, ownedQuantity)
       ];
     }
     
-    // For buy, offer standard quantities
     return [1, 5, 10, 25, 50, 100];
   }, [formData.type, formData.symbol, ownedStocks]);
   
-  // Helper function to get investment amount options
   const getAmountOptions = useCallback(() => {
     if (!latestPrice) return [100, 500, 1000, 2500, 5000, 10000];
     
-    // If selling, calculate based on owned quantity
     if (formData.type === TransactionType.Sell) {
       const ownedQuantity = ownedStocks[formData.symbol] || 0;
-      if (ownedQuantity === 0) return [100]; // At least return a default valid option
+      if (ownedQuantity === 0) return [100];
       
       const totalValue = ownedQuantity * latestPrice;
       
       return [
-        Math.max(100, Math.ceil(totalValue * 0.25)), // 25%
-        Math.max(100, Math.ceil(totalValue * 0.5)),  // 50%
-        Math.max(100, Math.ceil(totalValue * 0.75)), // 75%
-        Math.max(100, Math.ceil(totalValue))         // 100%
+        Math.max(100, Math.ceil(totalValue * 0.25)),
+        Math.max(100, Math.ceil(totalValue * 0.5)),
+        Math.max(100, Math.ceil(totalValue * 0.75)),
+        Math.max(100, Math.ceil(totalValue))
       ];
     }
     
-    // For buying, offer standard amounts
     return [100, 500, 1000, 2500, 5000, 10000];
   }, [latestPrice, formData.type, formData.symbol, ownedStocks]);
   
-  // Add validation helpers
   const isQuantityValid = useCallback((quantity: number): boolean => {
     return Number.isInteger(quantity) && quantity > 0;
   }, []);
@@ -557,7 +503,6 @@ const Transactions: React.FC = () => {
     return !isNaN(amount) && amount > 0;
   }, []);
   
-  // Handle portfolio change
   const handlePortfolioChange = useCallback((event: SelectChangeEvent<string>) => {
     const newPortfolioId = event.target.value;
     setSelectedPortfolioId(newPortfolioId);
@@ -659,25 +604,23 @@ const Transactions: React.FC = () => {
       ) : (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
           {filteredTransactions.map(transaction => {
-            // Get status as string to ensure proper comparison
             const statusStr = String(transaction.status);
             const isSuccess = statusStr === 'Succeeded';
             const isFailed = statusStr === 'Failed';
             const isCanceled = statusStr === 'Canceled';
             const isOnHold = statusStr === 'OnHold';
             
-            // Set border color based on status
-            let borderColor = '#FFC107'; // default amber/warning color
+            let borderColor = '#FFC107';
             let bgColor = '#FFC107';
             
             if (isSuccess) {
-              borderColor = '#4CAF50'; // green
+              borderColor = '#4CAF50';
               bgColor = '#4CAF50';
             } else if (isFailed) {
-              borderColor = '#F44336'; // red
+              borderColor = '#F44336';
               bgColor = '#F44336';
             } else if (isCanceled) {
-              borderColor = '#9E9E9E'; // gray
+              borderColor = '#9E9E9E';
               bgColor = '#9E9E9E';
             }
             

@@ -9,7 +9,6 @@ import {
   TableContainer, 
   TableHead, 
   TableRow,
-  Chip,
   Avatar,
   IconButton,
   Button,
@@ -17,63 +16,47 @@ import {
   CircularProgress,
   Menu,
   MenuItem,
-  FormControl,
-  Select,
-  SelectChangeEvent,
   Tooltip
 } from '@mui/material';
-import { ArrowDropUp, ArrowDropDown, MoreVert, FilterList } from '@mui/icons-material';
+import { ArrowDropUp, ArrowDropDown, FilterList } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 import { businessDomainService } from '../../api/businessDomainService';
 
 const PortfolioHoldings: React.FC = () => {
   const theme = useTheme();
-  const { currentPortfolio, portfolioStocks, portfolios, selectPortfolio, isLoading } = usePortfolio();
+  const { portfolioStocks, isLoading } = usePortfolio();
   const [viewFilter, setViewFilter] = useState('all');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [sortField, setSortField] = useState<string | null>(null);
   const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
 
-  // Handle filter change
   const handleFilterChange = (filter: string) => {
     setViewFilter(filter);
   };
 
-  // Handle portfolio change
-  const handlePortfolioChange = (event: SelectChangeEvent) => {
-    const portfolioId = event.target.value as string;
-    selectPortfolio(portfolioId);
-  };
-
-  // Fetch daily price changes when portfolio stocks change
   useEffect(() => {
     if (portfolioStocks && portfolioStocks.length > 0) {
       fetchDailyPriceChanges();
     }
   }, [portfolioStocks]);
 
-  // Fetch 24-hour price changes for all symbols in the portfolio
   const fetchDailyPriceChanges = async () => {
     if (!portfolioStocks || portfolioStocks.length === 0) return;
     
     const newDailyChanges: Record<string, number> = {};
     const symbols = portfolioStocks.map(stock => stock.symbol);
     
-    // Process each symbol
     const promises = symbols.map(async (symbol) => {
       try {
-        // Get the two most recent historical data points (today and yesterday)
         const histData = await businessDomainService.getLatestHistoricalMarketData(symbol, 2);
         
         if (histData.length >= 2 && histData[0].close && histData[1].close) {
-          // Calculate 24-hour percentage change
           const currentPrice = histData[0].close;
           const previousPrice = histData[1].close;
           const percentChange = ((currentPrice - previousPrice) / previousPrice) * 100;
           newDailyChanges[symbol] = percentChange;
         } else if (histData.length >= 1 && histData[0].close) {
-          // If we only have today's data, use the existing percentage change
           const stockData = portfolioStocks.find(stock => stock.symbol === symbol);
           if (stockData) {
             newDailyChanges[symbol] = stockData.percentageChange;
@@ -81,7 +64,6 @@ const PortfolioHoldings: React.FC = () => {
         }
       } catch (error) {
         console.error(`Error fetching daily price changes for ${symbol}:`, error);
-        // Fallback to existing percentage change
         const stockData = portfolioStocks.find(stock => stock.symbol === symbol);
         if (stockData) {
           newDailyChanges[symbol] = stockData.percentageChange;
@@ -93,7 +75,6 @@ const PortfolioHoldings: React.FC = () => {
     setDailyChanges(newDailyChanges);
   };
 
-  // Apply filters
   const filteredHoldings = portfolioStocks.filter(stock => {
     const dailyChange = dailyChanges[stock.symbol] !== undefined ? dailyChanges[stock.symbol] : stock.percentageChange;
     
@@ -103,7 +84,6 @@ const PortfolioHoldings: React.FC = () => {
     return true;
   });
 
-  // Handle filter menu
   const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -117,7 +97,6 @@ const PortfolioHoldings: React.FC = () => {
     handleFilterMenuClose();
   };
 
-  // Sort holdings based on selected field
   const sortedHoldings = [...filteredHoldings].sort((a, b) => {
     if (!sortField) return 0;
     
@@ -131,12 +110,10 @@ const PortfolioHoldings: React.FC = () => {
       case 'currentValue':
         return b.currentTotalValue - a.currentTotalValue;
       case 'change':
-        // Use daily changes if available
         const changeA = dailyChanges[a.symbol] !== undefined ? dailyChanges[a.symbol] : a.percentageChange;
         const changeB = dailyChanges[b.symbol] !== undefined ? dailyChanges[b.symbol] : b.percentageChange;
         return changeB - changeA;
       case 'baseChange':
-        // Sort by base change (from purchase price)
         return b.percentageChange - a.percentageChange;
       case 'lastUpdated':
         return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
@@ -251,14 +228,12 @@ const PortfolioHoldings: React.FC = () => {
               </TableRow>
             ) : (
               sortedHoldings.map((holding) => {
-                // Get daily change value from state or fall back to stored value
                 const dailyChange = dailyChanges[holding.symbol] !== undefined 
                   ? dailyChanges[holding.symbol] 
                   : holding.percentageChange;
                 
                 const isChangeUp = dailyChange >= 0;
                 
-                // Base change (from purchase price to current)
                 const baseChange = holding.percentageChange;
                 const isBaseChangeUp = baseChange >= 0;
                 

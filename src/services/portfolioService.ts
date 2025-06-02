@@ -8,7 +8,6 @@ import {
   UpdatePortfolioStockRequest
 } from '../types/portfolio';
 
-// Portfolio endpoints
 export const getPortfolios = () => 
   businessDomainApi.get<Portfolio[]>('/api/portfolio');
 
@@ -24,7 +23,6 @@ export const updatePortfolio = (id: string, data: UpdatePortfolioRequest) =>
 export const deletePortfolio = (id: string) => 
   businessDomainApi.delete(`/api/portfolio/${id}`);
 
-// Portfolio Stock endpoints
 export const getPortfolioStocks = (portfolioId: string) => 
   businessDomainApi.get<PortfolioStock[]>(`/api/portfoliostock/portfolio/${portfolioId}`);
 
@@ -40,7 +38,6 @@ export const updatePortfolioStock = (id: string, data: UpdatePortfolioStockReque
 export const deletePortfolioStock = (id: string) => 
   businessDomainApi.delete(`/api/portfoliostock/${id}`);
 
-// Market data endpoints
 export const getHistoricalMarketData = (symbol: string, startDate?: string, endDate?: string) => 
   businessDomainApi.get(`/api/marketdata/gethistoricalmarketdata`, {
     params: { symbol, start: startDate, end: endDate }
@@ -54,7 +51,6 @@ export const getIntradayMarketData = (symbol: string) =>
 export const getAllSymbols = () => 
   businessDomainApi.get<string[]>(`/api/marketdata/getalluniquesymbols`);
 
-// Portfolio analytics
 export const getPortfolioPerformance = (portfolioId: string, startDate: string, endDate: string) =>
   businessDomainApi.get(`/api/portfolio/${portfolioId}/performance`, {
     params: { startDate, endDate }
@@ -65,7 +61,6 @@ export const getPortfolioValueHistory = (portfolioId: string, timeRange: string)
     params: { timeRange }
   });
 
-// Download portfolio performance report as PDF
 export const downloadPortfolioPerformanceReport = (portfolioId: string, startDate: string, endDate: string) =>
   businessDomainApi.get(`/api/portfolio/${portfolioId}/performance-report`, {
     params: { startDate, endDate },

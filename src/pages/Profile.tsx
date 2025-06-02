@@ -15,8 +15,7 @@ import {
   Slider,
   FormHelperText,
   SelectChangeEvent,
-  Stack,
-  Divider,
+  Stack
 } from '@mui/material';
 import { useUser } from '../contexts/UserContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,30 +26,26 @@ const Profile = () => {
   const { user } = useAuth();
   const { personalInfo, preferences, isLoading, error, updatePersonalInfo, updatePreferences } = useUser();
   
-  // Personal info form state
   const [personalFormData, setPersonalFormData] = useState<UserPersonalInfo>({
     address: '',
     phoneNumber: '',
-    dateOfBirth: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+    dateOfBirth: new Date().toISOString().split('T')[0],
   });
 
-  // Preferences form state
   const [preferencesFormData, setPreferencesFormData] = useState<UserPreferences>({
     riskTolerance: 5,
     investmentHorizon: 'Medium',
   });
 
-  // Form submission status
   const [personalInfoSubmitting, setPersonalInfoSubmitting] = useState(false);
   const [preferencesSubmitting, setPreferencesSubmitting] = useState(false);
   const [personalInfoSuccess, setPersonalInfoSuccess] = useState(false);
   const [preferencesSuccess, setPreferencesSuccess] = useState(false);
 
-  // Update form data when user data is fetched
   useEffect(() => {
     if (personalInfo) {
       const dateOfBirth = personalInfo.dateOfBirth 
-        ? new Date(personalInfo.dateOfBirth).toISOString().split('T')[0]  // Format as YYYY-MM-DD
+        ? new Date(personalInfo.dateOfBirth).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
       setPersonalFormData({
@@ -68,13 +63,11 @@ const Profile = () => {
     }
   }, [personalInfo, preferences]);
 
-  // Handle personal info form changes
   const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPersonalFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle risk tolerance slider change
   const handleRiskToleranceChange = (_: Event, value: number | number[]) => {
     setPreferencesFormData(prev => ({ 
       ...prev, 
@@ -82,7 +75,6 @@ const Profile = () => {
     }));
   };
 
-  // Handle investment horizon change
   const handleInvestmentHorizonChange = (e: SelectChangeEvent) => {
     setPreferencesFormData(prev => ({ 
       ...prev, 
@@ -90,14 +82,12 @@ const Profile = () => {
     }));
   };
 
-  // Submit personal info form
   const handlePersonalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPersonalInfoSubmitting(true);
     setPersonalInfoSuccess(false);
     
     try {
-      // Convert the date string to ISO format for the API
       const formData = {
         ...personalFormData,
         dateOfBirth: personalFormData.dateOfBirth 
@@ -107,7 +97,6 @@ const Profile = () => {
       
       await updatePersonalInfo(formData);
       setPersonalInfoSuccess(true);
-      // Reset success message after 3 seconds
       setTimeout(() => setPersonalInfoSuccess(false), 3000);
     } catch (err) {
       console.error('Error updating personal info:', err);
@@ -116,7 +105,6 @@ const Profile = () => {
     }
   };
 
-  // Submit preferences form
   const handlePreferencesSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPreferencesSubmitting(true);
@@ -125,7 +113,6 @@ const Profile = () => {
     try {
       await updatePreferences(preferencesFormData);
       setPreferencesSuccess(true);
-      // Reset success message after 3 seconds
       setTimeout(() => setPreferencesSuccess(false), 3000);
     } catch (err) {
       console.error('Error updating preferences:', err);
@@ -134,7 +121,6 @@ const Profile = () => {
     }
   };
 
-  // Format date from ISO string to readable format
   const formatDate = (dateString: string) => {
     try {
       return format(parseISO(dateString), 'MMMM d, yyyy');

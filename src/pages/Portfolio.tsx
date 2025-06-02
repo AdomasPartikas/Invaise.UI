@@ -29,9 +29,6 @@ import {
   Stack,
   LinearProgress,
   FormControl,
-  InputLabel,
-  Select,
-  FormHelperText,
   Radio,
   RadioGroup,
   FormControlLabel,
@@ -72,7 +69,6 @@ import { businessDomainService } from '../api/businessDomainService';
 import { PortfolioOptimization } from '../components/dashboard/PortfolioOptimization';
 import PerformanceReportDialog from '../components/portfolio/PerformanceReportDialog';
 
-// Create a modified type that allows string values for quantity and investmentAmount
 type StockFormData = Omit<CreatePortfolioStockRequest, 'quantity' | 'investmentAmount'> & {
   quantity: number | string;
   investmentAmount: number | string;
@@ -122,12 +118,10 @@ const Portfolio: React.FC = () => {
     severity: 'info',
   });
 
-  // Performance report states
   const [openReportDialog, setOpenReportDialog] = useState<boolean>(false);
   const [reportPortfolio, setReportPortfolio] = useState<PortfolioType | null>(null);
   const [reportLoading, setReportLoading] = useState<boolean>(false);
   
-  // Fetch portfolios on component mount
   useEffect(() => {
     if (isAuthenticated) {
       fetchPortfolios();
@@ -142,7 +136,6 @@ const Portfolio: React.FC = () => {
       setPortfolios(response.data);
       setError(null);
       
-      // Fetch stocks for all portfolios initially
       response.data.forEach(portfolio => {
         fetchPortfolioStocks(portfolio.id);
       });
@@ -157,7 +150,6 @@ const Portfolio: React.FC = () => {
   const fetchSymbols = async () => {
     setSymbolsLoading(true);
     try {
-      // Get all available stock symbols from the CompanyController endpoint
       const symbols = await businessDomainService.getAllUniqueSymbols();
       setAvailableSymbols(symbols);
     } catch (err) {
@@ -172,7 +164,6 @@ const Portfolio: React.FC = () => {
     try {
       const response = await getPortfolioStocks(portfolioId);
       
-      // Update the portfolio with the stocks
       setPortfolios(prevPortfolios => 
         prevPortfolios.map(portfolio => 
           portfolio.id === portfolioId 
@@ -195,14 +186,11 @@ const Portfolio: React.FC = () => {
   const handleAccordionChange = (portfolioId: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
     setExpandedPortfolio(isExpanded ? portfolioId : false);
     
-    // No need to fetch stocks again as they're loaded on component mount
-    // but refresh the data if the accordion is expanded
     if (isExpanded) {
       fetchPortfolioStocks(portfolioId);
     }
   };
 
-  // Portfolio Dialog Handlers
   const handleOpenPortfolioDialog = (portfolio?: PortfolioType) => {
     if (portfolio) {
       setEditingPortfolio(portfolio);
@@ -235,7 +223,6 @@ const Portfolio: React.FC = () => {
   const handlePortfolioSubmit = async () => {
     try {
       if (editingPortfolio) {
-        // Update existing portfolio
         await updatePortfolio(editingPortfolio.id, portfolioFormData);
         setSnackbar({
           open: true,
@@ -243,7 +230,6 @@ const Portfolio: React.FC = () => {
           severity: 'success',
         });
       } else {
-        // Create new portfolio
         await createPortfolio(portfolioFormData);
         setSnackbar({
           open: true,
@@ -284,7 +270,6 @@ const Portfolio: React.FC = () => {
     }
   };
 
-  // Stock Dialog Handlers
   const handleOpenStockDialog = (portfolio: PortfolioType, stock?: PortfolioStock) => {
     setCurrentPortfolio(portfolio);
     
@@ -333,19 +318,16 @@ const Portfolio: React.FC = () => {
         : value,
     };
     
-    // If investment type changes, reset quantity or investment amount
     if (name === 'investmentType') {
       if (value === InvestmentType.Shares) {
         newFormData.investmentAmount = '';
       } else if (value === InvestmentType.Money) {
-        // Keep the quantity but we'll calculate it later based on price and investment amount
         newFormData.investmentAmount = '';
       }
     }
     
     setStockFormData(newFormData);
     
-    // Fetch historical price data when symbol or purchase date changes
     if ((name === 'symbol' || name === 'purchaseDate' || name === 'quantity' || name === 'investmentAmount') && 
         newFormData.symbol && newFormData.purchaseDate) {
       const amountValue = (
@@ -372,44 +354,37 @@ const Portfolio: React.FC = () => {
     if (!symbol || !date || amount <= 0) return;
     
     try {
-      // Check if the selected date is today
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const isToday = date === today;
       
-      // Fetch historical price data for the purchase date
       const historicalData = await businessDomainService.getHistoricalMarketData(
         symbol, 
-        date,  // Start date
-        date   // End date
+        date,  
+        date  
       );
       
       let historicalPrice = 0;
       let currentPrice = 0;
       let usedIntradayData = false;
       
-      // Handle historical price (purchase date price)
       if (historicalData && historicalData.length > 0) {
         const priceData = historicalData[0];
         historicalPrice = priceData.close || 0;
       } else {
-        // No historical data for the selected date
         if (!isToday) {
-          // For past dates, we need historical data
           setSnackbar({
             open: true,
             message: `No historical data found for ${symbol} on ${date}. Try a different date.`,
             severity: 'warning',
           });
-          return; // Don't proceed as we can't calculate without historical price
+          return;
         } else {
-          // For today, we can use intraday data for both historical and current
           const intradayData = await businessDomainService.getIntradayMarketData(symbol);
           if (intradayData && intradayData.length > 0) {
             historicalPrice = intradayData[0].current;
             usedIntradayData = true;
           } else {
-            // No intraday data available for today
             setSnackbar({
               open: true,
               message: `No data available for ${symbol} today. Try a different date.`,
@@ -420,12 +395,9 @@ const Portfolio: React.FC = () => {
         }
       }
       
-      // Fetch or determine current price
       if (isToday) {
-        // For today's purchase, current price = historical price we just got
         currentPrice = historicalPrice;
       } else {
-        // For past purchases, get the current price (today's price)
         const currentPriceData = await businessDomainService.getHistoricalMarketData(
           symbol,
           today,
@@ -435,37 +407,31 @@ const Portfolio: React.FC = () => {
         if (currentPriceData && currentPriceData.length > 0) {
           currentPrice = currentPriceData[0].close || 0;
         } else {
-          // If we can't get today's historical data, use intraday
           const intradayData = await businessDomainService.getIntradayMarketData(symbol);
           if (intradayData && intradayData.length > 0) {
             currentPrice = intradayData[0].current;
             usedIntradayData = true;
           } else {
-            // No data available for current price
             setSnackbar({
               open: true,
               message: `Could not determine current price for ${symbol}. Using estimated values.`,
               severity: 'warning',
             });
-            // Use historical price as fallback
             currentPrice = historicalPrice;
           }
         }
       }
       
-      // Calculate values based on prices
       let quantity: number = 0;
       let totalBaseValue: number = 0;
       let currentTotalValue: number = 0;
       let percentageChange: number = 0;
       
       if (investmentType === InvestmentType.Shares) {
-        // User is buying a specific number of shares
         quantity = amount;
         totalBaseValue = historicalPrice * quantity;
         currentTotalValue = currentPrice * quantity;
       } else {
-        // User is investing a specific amount of money
         const investmentAmount = amount;
         quantity = investmentAmount / historicalPrice;
         totalBaseValue = investmentAmount;
@@ -491,7 +457,6 @@ const Portfolio: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching historical stock price:', error);
-      // If API call fails, use a fallback mock method
       setSnackbar({
         open: true,
         message: `Error fetching data for ${symbol}. Using estimated values.`,
@@ -501,12 +466,10 @@ const Portfolio: React.FC = () => {
     }
   };
 
-  // Fallback function if the API call fails
   const generateMockStockData = (symbol: string, amount: number) => {
     try {
-      // Mock implementation for demonstration or fallback
-      const mockCurrentPrice = Math.random() * 500 + 50; // Random price between $50-550
-      const mockBasePrice = mockCurrentPrice * (1 - (Math.random() * 0.2 - 0.1)); // Base price +/- 10%
+      const mockCurrentPrice = Math.random() * 500 + 50;
+      const mockBasePrice = mockCurrentPrice * (1 - (Math.random() * 0.2 - 0.1));
       
       let quantity: number = 0;
       let currentTotalValue: number = 0;
@@ -540,7 +503,6 @@ const Portfolio: React.FC = () => {
   const handleStockSubmit = async () => {
     if (!currentPortfolio) return;
     
-    // Convert string quantities to numbers for submission
     const quantityValue = typeof stockFormData.quantity === 'string' ? 
       (stockFormData.quantity === '' ? 0 : Number(stockFormData.quantity)) : 
       stockFormData.quantity;
@@ -551,7 +513,6 @@ const Portfolio: React.FC = () => {
     
     try {
       if (editingStock) {
-        // Update existing stock
         await updatePortfolioStock(editingStock.id, {
           quantity: quantityValue,
           currentTotalValue: stockFormData.currentTotalValue,
@@ -567,7 +528,6 @@ const Portfolio: React.FC = () => {
           severity: 'success',
         });
       } else {
-        // Create new stock
         await createPortfolioStock({
           ...stockFormData,
           quantity: quantityValue,
@@ -579,7 +539,6 @@ const Portfolio: React.FC = () => {
           severity: 'success',
         });
       }
-      // Refresh the stocks in the portfolio
       fetchPortfolioStocks(currentPortfolio.id);
       handleCloseStockDialog();
     } catch (err) {
@@ -601,7 +560,6 @@ const Portfolio: React.FC = () => {
           message: 'Stock removed successfully',
           severity: 'success',
         });
-        // Refresh the stocks in the portfolio
         fetchPortfolioStocks(portfolioId);
       } catch (err) {
         console.error('Error deleting stock:', err);
@@ -618,7 +576,6 @@ const Portfolio: React.FC = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Helper function to get a color based on portfolio strategy
   const getStrategyColor = (strategy: PortfolioStrategy) => {
     switch (strategy) {
       case PortfolioStrategy.Aggressive:
@@ -636,7 +593,6 @@ const Portfolio: React.FC = () => {
     }
   };
 
-  // Calculate portfolio statistics
   const calculatePortfolioStats = (portfolio: PortfolioType) => {
     const stocks = portfolio.portfolioStocks || [];
     
@@ -656,36 +612,30 @@ const Portfolio: React.FC = () => {
     };
   };
 
-  // Handle opening the performance report dialog
   const handleOpenReportDialog = (portfolio: PortfolioType) => {
     setReportPortfolio(portfolio);
     setOpenReportDialog(true);
   };
   
-  // Handle closing the performance report dialog
   const handleCloseReportDialog = () => {
     setOpenReportDialog(false);
     setReportPortfolio(null);
   };
   
-  // Download the portfolio performance report
   const handleDownloadReport = async (portfolioId: string, startDate: string, endDate: string) => {
     setReportLoading(true);
     try {
       const response = await downloadPortfolioPerformanceReport(portfolioId, startDate, endDate);
       
-      // Create a blob URL for the PDF file
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
-      // Create a temporary anchor element to trigger the download
       const link = document.createElement('a');
       link.href = url;
       link.download = `portfolio-performance-report-${portfolioId}-${startDate}-${endDate}.pdf`;
       document.body.appendChild(link);
       link.click();
       
-      // Clean up
       URL.revokeObjectURL(url);
       document.body.removeChild(link);
       
@@ -777,7 +727,7 @@ const Portfolio: React.FC = () => {
                 onChange={handleAccordionChange(portfolio.id)}
                 sx={{
                   mb: 2,
-                  '&::before': { display: 'none' }, // Remove the default disclosure bar
+                  '&::before': { display: 'none' },
                   borderRadius: 1,
                   boxShadow: 1,
                 }}

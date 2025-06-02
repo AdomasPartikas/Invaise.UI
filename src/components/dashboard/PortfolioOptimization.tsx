@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Button, 
@@ -16,9 +16,7 @@ import {
   Alert,
   AlertTitle,
   Collapse,
-  IconButton,
-  Switch,
-  FormControlLabel
+  IconButton
 } from '@mui/material';
 import { 
   TrendingUp, 
@@ -37,7 +35,6 @@ import { useTransaction } from '../../contexts/TransactionContext';
 export const PortfolioOptimization: React.FC = () => {
   const { 
     currentPortfolio, 
-    portfolioStocks,
     optimization, 
     optimizationLoading, 
     optimizationError,
@@ -48,10 +45,7 @@ export const PortfolioOptimization: React.FC = () => {
     refreshPortfolio
   } = usePortfolio();
 
-  const {
-    optimizationGroups,
-    cancelOptimization: cancelOptimizationTransactions
-  } = useTransaction();
+  const { optimizationGroups } = useTransaction();
 
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -59,9 +53,7 @@ export const PortfolioOptimization: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
 
-  // Find the currently in-progress optimization transactions
   const inProgressGroup = optimizationGroups.find(
     group => group.optimizationId === inProgressOptimizationId
   );
@@ -92,7 +84,6 @@ export const PortfolioOptimization: React.FC = () => {
     setSuccess(null);
     try {
       const result = await getPortfolioOptimization(currentPortfolio.id);
-      console.log('Optimization result:', result);
       if (result && !result.optimizationId) {
         setError("Could not obtain optimization ID. Applying changes may not work.");
       } else {
@@ -184,7 +175,6 @@ export const PortfolioOptimization: React.FC = () => {
     }).format(date);
   };
 
-  // Show a more user-friendly version of the optimization conflict error
   const getErrorDisplayMessage = (message: string) => {
     if (message.includes("There is already an optimization in progress") || 
         message.includes("There is already an optimization ready to be applied")) {
@@ -193,7 +183,6 @@ export const PortfolioOptimization: React.FC = () => {
     return message;
   };
 
-  // Extract the in-progress optimization ID for display
   const getInProgressIdForDisplay = () => {
     if (inProgressOptimizationId) {
       return inProgressOptimizationId.substring(0, 8) + "...";
@@ -339,7 +328,6 @@ export const PortfolioOptimization: React.FC = () => {
                     </TableHead>
                     <TableBody>
                       {optimization.recommendations.map((rec: PortfolioStockRecommendation) => {
-                        // Calculate changes - handle missing or NaN values
                         const currentQty = Number(rec.currentQuantity) || 0;
                         const recQty = Number(rec.recommendedQuantity) || 0;
                         const qtyChange = recQty - currentQty;

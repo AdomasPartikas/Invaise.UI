@@ -1,10 +1,7 @@
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
-  Chip,
   Avatar,
   Button,
   Table,
@@ -15,22 +12,10 @@ import {
   TableRow,
   useTheme,
   IconButton,
-  Tab,
-  Tabs,
   Paper,
   ButtonGroup,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Divider,
-  LinearProgress,
-  ToggleButtonGroup,
-  ToggleButton,
   CircularProgress,
-  Stack,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   SelectChangeEvent
@@ -38,16 +23,10 @@ import {
 import {
   ArrowUpward,
   ArrowDownward,
-  Timeline,
-  TrendingUp,
-  DonutLarge,
   MoreVert,
-  ShowChart,
-  AccountBalance,
   Add
 } from '@mui/icons-material';
-import { alpha } from '@mui/material/styles';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from 'recharts';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 import { businessDomainService } from '../../api/businessDomainService';
 import { useNavigate } from 'react-router-dom';
@@ -83,7 +62,6 @@ const PortfolioOverview = () => {
   const [dailyChanges, setDailyChanges] = useState<Record<string, number>>({});
   const [portfolioDailyChange, setPortfolioDailyChange] = useState<number>(0);
 
-  // Calculate portfolio totals when portfolio stocks change
   useEffect(() => {
     if (portfolioStocks && portfolioStocks.length > 0) {
       const totals = portfolioStocks.reduce((acc, stock) => {
@@ -104,7 +82,6 @@ const PortfolioOverview = () => {
       
       setPortfolioTotals(totals);
       
-      // Calculate and set latest prices from portfolioStocks to ensure consistency
       const newLatestPrices: Record<string, number> = {};
       portfolioStocks.forEach(stock => {
         if (stock.quantity > 0) {
@@ -113,7 +90,6 @@ const PortfolioOverview = () => {
       });
       setLatestPrices(newLatestPrices);
       
-      // Fetch 24-hour price changes for each symbol
       fetchDailyPriceChanges();
     } else {
       setPortfolioTotals({
@@ -126,14 +102,12 @@ const PortfolioOverview = () => {
     }
   }, [portfolioStocks]);
 
-  // Calculate portfolio-wide 24-hour change when daily changes are updated
   useEffect(() => {
     if (Object.keys(dailyChanges).length === 0 || portfolioStocks.length === 0) {
       setPortfolioDailyChange(0);
       return;
     }
 
-    // Calculate weighted average of daily changes
     let totalWeight = 0;
     let weightedChangeSum = 0;
 
@@ -141,7 +115,6 @@ const PortfolioOverview = () => {
       const dailyChange = dailyChanges[stock.symbol];
       
       if (dailyChange !== undefined && stock.currentTotalValue > 0) {
-        // Weight by current value
         weightedChangeSum += dailyChange * stock.currentTotalValue;
         totalWeight += stock.currentTotalValue;
       }
@@ -151,27 +124,22 @@ const PortfolioOverview = () => {
     setPortfolioDailyChange(averageDailyChange);
   }, [dailyChanges, portfolioStocks]);
 
-  // Fetch 24-hour price changes for all symbols in the portfolio
   const fetchDailyPriceChanges = async () => {
     if (!portfolioStocks || portfolioStocks.length === 0) return;
     
     const newDailyChanges: Record<string, number> = {};
     const symbols = portfolioStocks.map(stock => stock.symbol);
     
-    // Process each symbol
     const promises = symbols.map(async (symbol) => {
       try {
-        // Get the two most recent historical data points (today and yesterday)
         const histData = await businessDomainService.getLatestHistoricalMarketData(symbol, 2);
         
         if (histData.length >= 2 && histData[0].close && histData[1].close) {
-          // Calculate 24-hour percentage change
           const currentPrice = histData[0].close;
           const previousPrice = histData[1].close;
           const percentChange = ((currentPrice - previousPrice) / previousPrice) * 100;
           newDailyChanges[symbol] = percentChange;
         } else if (histData.length >= 1 && histData[0].close) {
-          // If we only have today's data, use the existing percentage change
           const stockData = portfolioStocks.find(stock => stock.symbol === symbol);
           if (stockData) {
             newDailyChanges[symbol] = stockData.percentageChange;
@@ -179,7 +147,6 @@ const PortfolioOverview = () => {
         }
       } catch (error) {
         console.error(`Error fetching daily price changes for ${symbol}:`, error);
-        // Fallback to existing percentage change
         const stockData = portfolioStocks.find(stock => stock.symbol === symbol);
         if (stockData) {
           newDailyChanges[symbol] = stockData.percentageChange;
@@ -191,7 +158,6 @@ const PortfolioOverview = () => {
     setDailyChanges(newDailyChanges);
   };
 
-  // Fetch historical data from API when time range changes
   useEffect(() => {
     if (portfolioStocks && portfolioStocks.length > 0) {
       fetchHistoricalData();
@@ -201,7 +167,6 @@ const PortfolioOverview = () => {
   const fetchHistoricalData = async () => {
     setIsLoading(true);
     try {
-      // Calculate date range based on selected time range
       const endDate = new Date();
       let startDate = new Date();
       
@@ -223,22 +188,18 @@ const PortfolioOverview = () => {
           break;
       }
       
-      // Format dates for API
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
-      // Get unique symbols from portfolio
       const symbolMap: Record<string, boolean> = {};
       const stocksMap: Record<string, { quantity: number, ratio: number }> = {};
       let totalPortfolioValue = 0;
       
-      // Calculate the current ratio of each stock in the portfolio
       portfolioStocks.forEach(stock => {
         symbolMap[stock.symbol] = true;
         totalPortfolioValue += stock.currentTotalValue;
       });
       
-      // If no stocks or zero total value, exit early
       if (totalPortfolioValue === 0 || portfolioStocks.length === 0) {
         setHistoricalData([{
           date: new Date().toISOString().split('T')[0],
@@ -248,7 +209,6 @@ const PortfolioOverview = () => {
         return;
       }
       
-      // Calculate ratio for each stock (how much it contributes to the total portfolio)
       portfolioStocks.forEach(stock => {
         stocksMap[stock.symbol] = {
           quantity: stock.quantity,
@@ -258,11 +218,8 @@ const PortfolioOverview = () => {
       
       const symbols = Object.keys(symbolMap);
       
-      // First, get the historical relative performance of each symbol
-      // Then we'll apply the current portfolio ratios to this historical data
       const symbolHistoricalData: Record<string, Record<string, number>> = {};
       
-      // Fetch historical price data for each symbol
       const promises = symbols.map(async (symbol) => {
         try {
           const data = await businessDomainService.getHistoricalMarketData(
@@ -272,7 +229,6 @@ const PortfolioOverview = () => {
           );
           
           if (data.length > 0) {
-            // Store each day's closing price for this symbol
             symbolHistoricalData[symbol] = {};
             data.forEach(point => {
               if (point.close) {
@@ -288,47 +244,34 @@ const PortfolioOverview = () => {
       
       await Promise.all(promises);
       
-      // Create normalized price index for each symbol 
-      // where today's price = 1.0 (normalized to today's price)
       const normalizedSymbolData: Record<string, Record<string, number>> = {};
       
-      // 1. Get the latest available price for each symbol
       const latestPrices: Record<string, number> = {};
       symbols.forEach(symbol => {
         if (symbolHistoricalData[symbol]) {
-          // Get all dates we have data for this symbol
           const dates = Object.keys(symbolHistoricalData[symbol]).sort();
           if (dates.length > 0) {
-            // Use the most recent price as the normalizer
             const latestDate = dates[dates.length - 1];
             latestPrices[symbol] = symbolHistoricalData[symbol][latestDate];
           }
         }
       });
       
-      // 2. Calculate normalized prices (relative to the latest price)
       symbols.forEach(symbol => {
         if (symbolHistoricalData[symbol] && latestPrices[symbol]) {
           normalizedSymbolData[symbol] = {};
           const latestPrice = latestPrices[symbol];
           
           Object.entries(symbolHistoricalData[symbol]).forEach(([date, price]) => {
-            // Calculate price as percentage of latest price (1.0 = 100% of latest price)
             normalizedSymbolData[symbol][date] = price / latestPrice;
           });
         }
       });
       
-      // Now calculate historical portfolio values using:
-      // 1. Today's portfolio allocation ratio (how much each stock contributes)
-      // 2. Normalized historical prices (how prices moved relative to today)
       const portfolioHistory: Record<string, number> = {};
       
-      // For each date, calculate the portfolio value 
-      // This respects the current allocation while reflecting historical price changes
       const allDates = new Set<string>();
       
-      // Collect all dates that we have data for
       symbols.forEach(symbol => {
         if (normalizedSymbolData[symbol]) {
           Object.keys(normalizedSymbolData[symbol]).forEach(date => {
@@ -337,7 +280,6 @@ const PortfolioOverview = () => {
         }
       });
       
-      // Calculate historical portfolio value for each date
       Array.from(allDates).sort().forEach(date => {
         let dateTotal = 0;
         symbols.forEach(symbol => {
@@ -345,29 +287,24 @@ const PortfolioOverview = () => {
               normalizedSymbolData[symbol][date] !== undefined &&
               stocksMap[symbol]) {
             
-            // How much this stock contributes to the total portfolio value today
             const currentContribution = portfolioTotals.totalValue * stocksMap[symbol].ratio;
             
-            // Adjust current contribution by the historical normalized price
             const historicalContribution = currentContribution * normalizedSymbolData[symbol][date];
             
             dateTotal += historicalContribution;
           }
         });
         
-        // Only add dates with values > 0
         if (dateTotal > 0) {
           portfolioHistory[date] = dateTotal;
         }
       });
       
-      // Convert to array format for the chart
       const chartData = Object.entries(portfolioHistory)
         .map(([date, value]) => ({ date, value }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       if (chartData.length > 0) {
-        // Add today's exact value to ensure the chart reflects current portfolio value
         const today = new Date().toISOString().split('T')[0];
         const lastDate = chartData[chartData.length - 1].date;
         
@@ -377,13 +314,11 @@ const PortfolioOverview = () => {
             value: portfolioTotals.totalValue
           });
         } else {
-          // Ensure last data point is exactly the current portfolio value
           chartData[chartData.length - 1].value = portfolioTotals.totalValue;
         }
         
         setHistoricalData(chartData);
       } else {
-        // Fallback if no historical data found
         setHistoricalData([{
           date: new Date().toISOString().split('T')[0],
           value: portfolioTotals.totalValue
@@ -391,7 +326,6 @@ const PortfolioOverview = () => {
       }
     } catch (error) {
       console.error("Error fetching historical data:", error);
-      // Fallback
       setHistoricalData([{
         date: new Date().toISOString().split('T')[0],
         value: portfolioTotals.totalValue
@@ -428,7 +362,6 @@ const PortfolioOverview = () => {
     }
   };
 
-  // Filtering stocks based on the filter selection
   const filteredStocks = portfolioStocks.filter(stock => {
     if (filter === 'all') return true;
     if (filter === 'stocks') return !stock.symbol.includes('CRYPTO');
@@ -436,12 +369,10 @@ const PortfolioOverview = () => {
     return true;
   });
 
-  // Format function for chart tooltip
   const formatChartTooltip = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Format function for chart X-axis ticks
   const formatXAxisTick = (value: string) => {
     const date = new Date(value);
     
@@ -461,18 +392,14 @@ const PortfolioOverview = () => {
     }
   };
 
-  // Generate allocation data for pie chart
   const generateAllocationData = () => {
     if (!portfolioStocks || portfolioStocks.length === 0) {
       return [];
     }
 
-    // Group assets by type (stocks vs crypto) or by symbol
     const allocationData = portfolioStocks.reduce((acc, stock) => {
-      // Skip stocks with zero value
       if (stock.currentTotalValue <= 0) return acc;
       
-      // Use symbol as the category
       const key = stock.symbol;
       
       if (!acc[key]) {
@@ -491,7 +418,6 @@ const PortfolioOverview = () => {
     return Object.values(allocationData);
   };
   
-  // Generate a consistent color based on symbol
   const getRandomColor = (symbol: string) => {
     const colors = [
       theme.palette.primary.main,
@@ -509,7 +435,6 @@ const PortfolioOverview = () => {
       '#FF8042'
     ];
     
-    // Get a consistent index based on the symbol string
     const index = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
     return colors[index];
   };
@@ -662,7 +587,6 @@ const PortfolioOverview = () => {
         )}
       </Box>
       
-      {/* Top Assets Section - Full width */}
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="subtitle1" fontWeight="bold">
@@ -722,18 +646,14 @@ const PortfolioOverview = () => {
                   .slice()
                   .sort((a, b) => b.currentTotalValue - a.currentTotalValue)
                   .map((stock) => {
-                    // Calculate exact unit price with precision matching
-                    // Reverse engineer the unit price from the stock's current value and quantity
                     const unitPrice = stock.quantity > 0 ? stock.currentTotalValue / stock.quantity : 0;
                     
-                    // Get daily change value
                     const dailyChange = dailyChanges[stock.symbol] !== undefined 
                       ? dailyChanges[stock.symbol] 
                       : stock.percentageChange;
                     
                     const isChangeUp = dailyChange >= 0;
                     
-                    // Calculate percentage allocation
                     const allocation = portfolioTotals.totalValue > 0 
                       ? (stock.currentTotalValue / portfolioTotals.totalValue) * 100 
                       : 0;

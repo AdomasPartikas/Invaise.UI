@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { authService } from '../api/authService';
 import { User, LoginCredentials, RegistrationData } from '../types/auth';
 
-// Define token storage keys to match authService
 const TOKEN_KEY = 'invaise_auth_token';
 const USER_KEY = 'invaise_user';
 
@@ -33,7 +32,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // Start as loading
 
-  // Check for existing auth on mount
   useEffect(() => {
     const checkAuth = () => {
       try {
@@ -95,19 +93,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updatePersonalInfo = async (userId: string, info: PersonalInfo) => {
     setIsLoading(true);
     try {
-      // In a real app, this would make an API call to update user info
-      // For demo purposes, we'll just simulate an API delay
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Would normally update the user state with the new info
-      console.log('Updated personal info for user', userId, info);
     } finally {
       setIsLoading(false);
     }
   };
   
   const logout = () => {
-    // Remove token from localStorage
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     

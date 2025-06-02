@@ -28,7 +28,6 @@ const PerformanceReportDialog: React.FC<PerformanceReportDialogProps> = ({
   onDownload,
   isLoading
 }) => {
-  // Set default dates (1 month range)
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -36,7 +35,6 @@ const PerformanceReportDialog: React.FC<PerformanceReportDialogProps> = ({
   const [startDate, setStartDate] = useState(oneMonthAgo.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
   
-  // Validation
   const [startDateError, setStartDateError] = useState('');
   const [endDateError, setEndDateError] = useState('');
   

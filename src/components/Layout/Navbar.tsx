@@ -34,13 +34,9 @@ const Navbar: React.FC = () => {
   const open = Boolean(anchorEl);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Debug logging for market status - only log when component mounts
   useEffect(() => {
-    console.log("Navbar: Initial market status -", isMarketOpen ? "OPEN" : "CLOSED");
-    // No additional checks or dependencies to avoid loops
   }, []);
 
-  // Check if user is admin
   useEffect(() => {
     const checkAdmin = async () => {
       if (isAuthenticated) {
@@ -74,7 +70,6 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Get user initials for the avatar
   const getUserInitials = () => {
     if (user?.name) {
       return user.name
@@ -86,8 +81,7 @@ const Navbar: React.FC = () => {
     return user?.email?.substring(0, 2).toUpperCase() || 'U';
   };
 
-  // For debugging: Force market closed indicator to show regardless of API state
-  const forceShowClosedIndicator = false; // Set to false to use the actual API result
+  const forceShowClosedIndicator = false;
 
   return (
     <>
@@ -222,13 +216,12 @@ const Navbar: React.FC = () => {
           )}
         </Toolbar>
         
-        {/* Market status indicator - show either when API says closed or when forced for testing */}
         {(!isMarketOpen || forceShowClosedIndicator) && (
           <Box 
             sx={{ 
               height: '4px', 
               width: '100%', 
-              bgcolor: 'rgba(211, 47, 47, 0.7)', // Red with transparency
+              bgcolor: 'rgba(211, 47, 47, 0.7)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../api/authService';
 import { User, UserPersonalInfo, UserPreferences } from '../types/auth';
-import { businessDomainService } from '../api/businessDomainService';
 
 interface UserContextType {
   user: User | null;
@@ -23,7 +22,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user information
   const fetchUserInfo = async () => {
     setIsLoading(true);
     setError(null);
@@ -40,7 +38,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Update user personal info
   const updatePersonalInfo = async (info: UserPersonalInfo) => {
     if (!user) return;
     
@@ -50,7 +47,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.updatePersonalInfo(user.id, info);
       setPersonalInfo(response);
       
-      // Update local user data
       const updatedUser = { ...user, personalInfo: response };
       setUser(updatedUser);
     } catch (err) {
@@ -61,7 +57,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Update user preferences
   const updatePreferences = async (prefs: UserPreferences) => {
     if (!user) return;
     
@@ -71,7 +66,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await authService.updatePreferences(user.id, prefs);
       setPreferences(response);
       
-      // Update local user data
       const updatedUser = { ...user, preferences: response };
       setUser(updatedUser);
     } catch (err) {
@@ -82,7 +76,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Load user data on mount
   useEffect(() => {
     if (authService.isAuthenticated()) {
       fetchUserInfo();
